@@ -1,174 +1,190 @@
 +++
 title = "Circus: Yet Another Programming Take in the Age of Multi-Core Processing"
-date = 2019-11-27
+date = 2025-05-06
 slug = "circus-prgramming-in-multicore-era"
+
+[taxonomies]
+tags = ["rust", "programming"]
+
 +++
+Since the mid-20th century, programming languages have largely retained the same fundamental structure as when they were first invented. But as technology evolves steadily—and with hardware hitting the physical limits of single-core scaling and shifting towards multi-core architectures-there is a growing need to rethink how we approach computation.<!--more-->
 
-### Motivation
-Since mid of last century. the programming languages works in the same way like they are first invented, and as the technology moves monotonously and continuously, and the hardware hitting the hard limit of physics and switching to multi-core processing architecture , the need to find another view of point of how can we can solve our increasing needs of computing to another dimension,
+Circus explores a new dimension for structuring programs in the age of multi-core systems.
 
-### What is Circus ?
-Circus is a actor model runtime environment with embedded programming language, that break the logic in parallel elementary atomic actors that receives multiple inputs and produces output as workloads messages sent to each other to model the needed logic.
+## What is Circus?
+`Circus` is a runtime environment and embedded programming language built around the actor model. It decomposes logic into parallel, elementary, atomic actors. Each actor receives one or more inputs and produces output in the form of workload messages passed to other actors, forming the logic graph.
 
-For instance something like `5 * 4 + 3 * 6`, we can execute the multiplications in parallel and add their results after,
+For example, in a simple expression like `5 * 4 + 3 * 6`, the multiplications can be executed in parallel, with their results later combined via addition.
 
-Those operations is held in binary machine code created by low level languages as dynamic linked modules at runtime and loaded lazy fashion at runtime once needed
+`Actors` are compiled into binary machine code via low-level languages and dynamically linked as modules at runtime. They are loaded on-demand (lazily) as needed.
 
-Atomic here means that those actors represent very miniscule operations ( you can think of it like arithmetics and boolean operations) and holds guarded state, atomic memory portions, or holds no-state at all, those actors may be either input-only, input-output, or output only,
+Atomic, in this context, refers to actors that perform very small operations (e.g., arithmetic or boolean ops), and may either:
 
-So the messages are queued in multiple of very performant network-like LIFO ring-buffered queues and consumed by the different buffers on actors execution (dequeue), after the actors process the data, it enqueues the output to the buffers again to be processed by other actors and so on,
+* Maintain guarded state
+* Access atomic memory regions
+* Be stateless altogether
 
-you can think Circus is a special dialect of Prolog, but it is used for broader general purpose programming addressed to solve software problems and works with modern CPUs/GPUs in mind, with simpler concept and syntax
+Actors can be:
 
-Despite its general purpose nature. I see it is most fitting some domains like data and media streaming and network processing and so on
+* **Input-only**
 
-### Hello World
+* **Output-only**
 
-Here is hello world example
+* **Input-output**
+
+Messages are transmitted through high-performance, ring-buffered, LIFO queues. As actors execute, they dequeue messages, process them, and enqueue results for downstream actors. This forms a continuous processing graph.
+
+Circus draws inspiration from Prolog (particularly in its declarative-style logic), but aims to be a general-purpose language with simpler syntax and semantics, targeting modern CPU/GPU environments.
+
+While broadly applicable, it is especially well-suited for domains like:
+
+- Data streaming
+
+- Media processing
+
+- Network pipelines
+
+## Hello, World!
 ```rs
 fn main():(int ret) {
     puts s("Hello, World!!");
     ret = signal_int(s.done, 0);
 }
 ```
+## Where Did the Idea Come From?
+It started as an experiment in visual programming -how could software be sketched like a block diagram instead of written line-by-line?
 
+Later, while working in networking and multithreading, this idea evolved. The goal became clearer: structure software in a way that maps naturally to parallel execution.
 
-### From where does this idea come from?
+## Why Circus?
+Several motivations support this model:
 
-The first idea was about drawing programs rather than writing them, so how can we graphically represent a program by a sketch like block diagram
+1. Legacy applications are often single-threaded, underutilizing modern CPUs.
 
-then when I worked in networking and multithreading, this idea has grown with multiple details in mind, as described below
+2. The actor/message model is proven to be safe and efficient (e.g., Erlang, Go, Rust channels).
 
-### Why Circus ?
-This for a number of reasons
-1. the current traditional apps that relies on single threads, does not utilize the full power of the newer processor
-2. The actors and messaging paradigm is one of the safest and efficient model for parallelization programming (consider Channels in Erlang, Go and Rust).
-3. Replacing stacks with queues grants some versatility and flexibility rather than stack in managing memory and preserve internal cache lookups
+3. Replacing stacks with queues simplifies memory usage and better aligns with producer/consumer workloads and hardware caching.
 
+## Anatomy of a Circus Program
+A Circus program is a graph of connected micro-actors. Each actor (or "component") is an abstract unit with:
 
-### Circus anatomy
-the Circus program is a graph consisted of different micro actors, Each actors -and also called components- is an abstract interface with single function for execution, and each component has its own arguments and return values -lets call them input pins and output pins respectively' -
+* Input pins (arguments)
+* Output pins (return values)
 
-Circus graph is instantiated from multiple actor instances, those actors are connected by their respective pins to each other by `connections`, this connections is a logical entity about the source of the data processed by the actor and destination of the data sent by the actor.
+Actors are instantiated and connected by logical connections between pins, creating a web of dependencies rather than a linear list of instructions.
 
-So in contrast of traditional languages which is a set of multiple instructions, In Circus it is like a web or graph where instructions are connected together
+### Runtime Behavior
+At runtime, Circus:
 
-In runtime execution , the runtime creates multiple threads `jugglers` with the number of cores in the cpu , and creates a number of ring buffer workload queues equal to 1.5 number of CPU cores, each queue has internal size = 1MB RAM which are consumed with enqueued tasks and freed by work tasks done , those values sure are customized based on needs but those are the defaults,
+- Spawns multiple threads (called jugglers)—typically one per core.
+- Creates ring-buffered workload queues (~1.5× the number of cores).
+- Each queue uses a 1MB default size (configurable).
 
-And then those threads search for workloads in those queues, fetch them and direct them to the actors executors, and execute the corresponding underlying functions respective, and when the thread finish the actor work, it looks up for another workload task and so on
+### Jugglers:
 
-### The Ring master
-The `Ring master` is a special low priority main thread responsible of managing the runtime, so here is some of his duties
+- Pull tasks from the queues.
+- Execute the associated actor logic.
+- Enqueue results for other actors.
+- Repeat.
 
-* ends the program when there is no more tasks in all queues within set timeout (say 5secs)
-* Adaptively, so he can have the authority to increase the number of queues or threads based on the state of those jugglers and queues
-* He can dismiss one of the jugglers when it is stuck with a task within set timeout, he can reclaim the task and enqueue it somewhere else, and restart the thread again
+### The Ringmaster
+The `Ringmaster` is a special, low-priority thread that oversees the system:
 
-### Using Data-tags
-Circus Runtime is not aware of data types and their sizes at runtime, it just keep track of what so called data tags defined in the script language, this data tags are checked strictly by the runtime when connecting two actor's pins together, it makes sure that the output pin of the source actor has the same data tag of the destination input pin of receiving actor.
+* Shuts down the program when all queues are idle for a timeout period.
+* Dynamically scales the number of threads or queues.
+* Detects stuck threads, reassigns their workloads, and restarts them.
 
-I would like to reassure that those tags are just names with empty meaning for the runtime, so the runtime is not aware of any memory size and alignment of the date sent to/received from the actors, and its actor responsibility to make sure that the data they deal with are compatible
+## Data Tags and Type Safety
+The runtime is agnostic to data types. It tracks only data tags—labels defined in the script to represent semantic types. These tags:
 
-Sure there are `int`,`float`,`char`,`bool` reserved tags , but the runtime is checking those tags but agnostic about their meaning
+* Must match between connected pins (strictly enforced).
+* Carry no intrinsic meaning or size at runtime.
 
-and also there are literals that runtime can translate it to data types, but this is what can it do
+There are built-in tags like `int`, `float`, `char`, `bool`, and special signal types (e.g., void data), but they are treated symbolically. It is the actor’s responsibility to manage memory safely.
 
-there also the void type connections; which is type-less signals, which does not hold data, and does not has hash (as discussed soon)
-### Types of actors
+## Types of Actors
+There are two categories of actors:
 
-There are two types of actors
-* **Binary actor**: which is the function imported from the binary dynamic-linked library and represented by machine code,
-* **Logical actor**: it is something like functions in traditional languages,that contains multiple binary and logical actors graph packaged as a black box
-### Logical actors
+- **Binary actors**: Dynamically linked machine code functions.
 
-we can define the actors using this form
+- **Logical actors**: User-defined functions composed of internal actor graphs.
+
+### Example of Logical Actor:
 ```rs
 fn foo(int a, int b):(int ret) {
     int c = a + b;
     string str = (string)c;
     puts(str);
-    ret=1234;
+    ret = 1234;
 }
 ```
-- a+b is executed and assigned to c, and 1234 is sent through ret pin in the same time supposedly .
-- then a + b result is assigned to c;
-- then c is converted to string;
-- then str is printed
 
-Notice that the ret assignment is not dependent on earlier instructions
+**Note**: The assignment to ret is independent of other operations.
 
-### No recursions, But repetitions
-So as the structural nature of the runtime, there is no recursion, as the definition of the logical actor is based on the definition of the child actors, so it is impossible to define recursive actors
+## No Recursion, But Repetition Allowed
+Due to its graph-based structure, recursion is not possible-actors cannot reference themselves cyclically.
 
-But repetitions are possible, consider the following
+However, loops (repetition) can be modeled via feedback cycles in the graph:
+
 ```rs
-x = 0
-x = x + 1
+x = 0;
+x = x + 1;
 ```
-This will do infinite loop
+This creates an infinite loop where `x` is a cache actor holding the latest value. The value is incremented and re-fed into `x`.
 
-so x here is a cache actor the takes value and sending it again (not typical a variable) so here x value takes 0 and then send it add which will add it to 1 and send it back to x which will send it to add and so on to infinity, and this program will never end,
+## Data Handling
+By default, data is copied into workloads. Avoid using raw pointers unless dealing with large shared structures.
 
-### The data structure
-The data is generally copied into the workloads, so it is not a good practice to hold pointers or references unless the data is so huge, and in this case the responsibility of the actors to keep the shared data safe some copy-on-write ref-counted well-guarded memory area, or this shared state can be held in well-guarded actors accessible from different other actors
+To share safely:
 
-another idea is that the ring master can dedicate a special Agent for those data if needed
+* Use copy-on-write memory with reference counting.
 
-### Don't recompute the wheel
-Consider we have a video game, where the player does not move a mouse, or register any key strokes, it is inefficient to redraw the same scene multiple times , which consumes energy and processing power to do the same thing
+* Store shared state in dedicated, guarded actors.
 
-In Circus runtime the data propagates by change, so actors should not process the same values repetitively in consecutive cycles,
+## Avoid Recomputing Unchanged Data
+To optimize, Circus propagates only changed data.
 
-To prevent to initiate long chain reaction for data that does not change, and save processing of data that is already computed before.
+Each value has a 64-bit hash, so if an actor receives the same value again, it can skip reprocessing.
 
-Each piece of data should has some sort of 64-bit hash value to prevent re-processing the same data twice in the same pin. so output pins have hash value of the last data sent, and in each occasion that hashes are equal the data should be held and not posted, unless otherwise specified,
-
-consider the modified version of last example ( multiplication instead of addition)
 ```rs
-x = 0
-x = x * 1
+x = 0;
+x = x * 1;
 ```
-Here the program will end because the x mul operation will have the same hash from the last cycle
+This will terminate, since the hash of `x * 1` remains unchanged.
 
-Primitive data has hash of itself ,so no need for hashing here
+## Sequence Numbers (Optional Feature)
+Circus could also support global sequence numbers for each value, enabling:
 
-### Syncing using sequence number ?
-the runtime may have the capability to identify expired values that approaches the input pin using `global sequence numbers` , every value post in output pin dispatch an integer representing the sequence of this value .. so the runtime can ignore the older value if the newer value received first
-this mechanism is similar to what is widely used in networking to eliminate any out-of-order packets in favor for newer ones
+* Detection of **outdated values**.
+* Preference for newer inputs (as in networking with packet ordering).
 
-### The dual nature of actors
-the actors in Circus has dual nature, to be function with arguments or object with properties
-for instance lets consider this example
-
-
+## Dual Nature of Actors
+Actors can be called like functions or used like objects:
 ```rs
-// we have a function like this
 fn foo(string s, float f):()
 
-// we can say this
+// Functional call
 foo("abc", 1.2);
 
-// --OR--
+// Object-like usage
 foo f;
 f.s = "abc";
-f.f = 1.2
+f.f = 1.2;
 
-// or even
+// Constructor-style
 foo f("abc", 1.2);
-
 ```
 
-### Joining and Forking
-there is two types of necessary actors
-* **Joins**: which has two inputs one output of the same data tag, whenever an updated value is received by one of the two input pins ,it will be directed to the output pin
-* **Forks**: which has one input two outputs of the same data tag, whenever a new value is approaching is replicated in both output pins
+## Join and Fork
+Two special actor types:
 
-## Horizons
-- Hardware : May be it is a good opportunity to reconsider the hardware architecture which can adopt this model to expand and grant more performance for end users
-- multi-tenant deployment synchronization: Passing tasks between runtimes in different server machines can grant good opportunities for scaling, availability, fault tolerance, and distributed systems
-- Utilize Modern control theory to manage runtime resources: may be it is fortunate for runtime to adapt the number of jugglers/queues based on the load introduce to the runtime
+**Join**: Two inputs, one output. Emits whenever either input is updated.
 
+**Fork**: One input, two outputs. Duplicates input to both outputs.
 
+## Future Horizons
+**Hardware support**: Future processors might embrace models like Circus natively.
 
+**Multi-tenant distribution**: Sharing workloads across machines for fault tolerance and scalability.
 
-
+**Adaptive resource control**: Runtime could self-regulate based on real-time load using control theory principles.

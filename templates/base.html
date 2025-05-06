@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 
-<header>
+<head>
     <title>Osama Salem</title>
-    <link rel="stylesheet" href="/global.css" />
-
-</header>
+    {% set url = get_url(path="global.css") %}
+    <link rel="stylesheet" href="{{url}}" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
 
 <html lang="en">
 
@@ -19,9 +20,13 @@
             </div>
         </section>
         <footer>
-            <hr>
-            <p><a href=".">About</a> | LinkedIn | Github | Resume</p>
-            <p>Copyright to Osama Salem 2025</p>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> About</a>
+                | <a href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a href="/about"><i class="fa fa-file" aria-hidden="true"></i>  Resume</a></p>
+            <p>Copyright  to Osama Salem 2025</p>
         </footer>
     </div>
 </body>

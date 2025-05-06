@@ -1,0 +1,15 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ taxonomy.name }}{% endblock %}
+{% block header %}{{ taxonomy.name }}{% endblock %}
+{% block navigation %}<a href="/">Home</a> &gt; <a href="{{ current_path | safe }}">{{ taxonomy.name }}</a>{% endblock %}
+{% block content %}
+<dl title="List of {{ taxonomy.name }} entries">
+{% for term in terms %}
+<dt>
+        <p><a href="{{ term.path | safe}}">{{ term.name }}</a></p>
+</dt>
+{% endfor %}
+</dl>
+{% endblock %}
