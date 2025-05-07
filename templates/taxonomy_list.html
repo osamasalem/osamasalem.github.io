@@ -1,15 +1,12 @@
 
 {% extends "base.html" %}
 
-{% block title %}{{ taxonomy.name }}{% endblock %}
-{% block header %}{{ taxonomy.name }}{% endblock %}
-{% block navigation %}<a href="/">Home</a> &gt; <a href="{{ current_path | safe }}">{{ taxonomy.name }}</a>{% endblock %}
 {% block content %}
-<dl title="List of {{ taxonomy.name }} entries">
+<h1> {{taxonomy.name | capitalize }}</h1>
 {% for term in terms %}
-<dt>
-        <p><a href="{{ term.path | safe}}">{{ term.name }}</a></p>
-</dt>
+{% if loop.index != 1 %}
+    |
+{% endif %}
+    <a href="{{ term.path | safe}}">  #{{ term.name }}</a>
 {% endfor %}
-</dl>
 {% endblock %}

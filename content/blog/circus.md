@@ -1,10 +1,10 @@
 +++
-title = "Circus: Yet Another Programming Take in the Age of Multi-Core Processing"
+title = "Circus: Yet Another Programming Take"
 date = 2025-05-06
 slug = "circus-prgramming-in-multicore-era"
 
 [taxonomies]
-tags = ["rust", "programming"]
+tags = ["programming"]
 
 +++
 Since the mid-20th century, programming languages have largely retained the same fundamental structure as when they were first invented. But as technology evolves steadily—and with hardware hitting the physical limits of single-core scaling and shifting towards multi-core architectures-there is a growing need to rethink how we approach computation.<!--more-->
