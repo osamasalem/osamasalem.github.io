@@ -5,7 +5,7 @@ slug="about"
 +++
 # About me
 ## Highlights
-* Long experience in software engineering across various stacks including C/C++,  .NET, JavaScript and Java.
+* 10+ experience in software engineering across various stacks including C/C++, .NET, JavaScript and Java.
 * Extensive experience in system-level critical low-latency drivers/system programming on Windows and Linux platforms.
 * Award-winning by my employer for exceptional effort in project delivery with high quality and strict deadlines in 2015.
 * Successfully led a development team to deliver a nationwide governmental web portal with peak traffic (60k requests/sec) and a micro-services architecture, ensuring minimal downtime.
@@ -66,3 +66,5 @@ Dipl. in Business Administration.
 #### August 2022
 Machine Learning Course, Score 98%.
 
+### Contact
+- Email: [usamamsalem@yahoo.com](mailto:usamamsalem@yahoo.com)

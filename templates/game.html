@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+
+<body>
+    <canvas id="glcanvas" tabindex='1' width= 1280 height=720></canvas>
+    <!-- Minified and statically hosted version of https://github.com/not-fl3/macroquad/blob/master/js/mq_js_bundle.js -->
+    <script src="mq_js_bundle.js"></script>
+    <script>load("pong.wasm");</script> <!-- Your compiled WASM binary -->
+</body>
+
+
+{% endblock content %}

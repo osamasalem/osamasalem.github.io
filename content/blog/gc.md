@@ -15,6 +15,7 @@ Garbage collection (GC) is widely considered a hallmark of modern programming la
 
 However, <!--more--> while GC may reduce development complexity, it introduces non-trivial runtime costs—costs that are ultimately borne by the end user. This article presents a critique of GC from a user-experience and engineering accountability perspective, advocating for deterministic memory management models where appropriate, especially in production software.
 
+
 ## 1. The Ethical Dimension: Who Pays the Cost?
 From the perspective of an end user, runtime performance matters. Whether on mobile, desktop, or embedded systems, users value responsiveness, energy efficiency, and predictability. Yet garbage collection introduces behavior that can contradict these values:
 
@@ -27,6 +28,10 @@ From the perspective of an end user, runtime performance matters. Whether on mob
 These trade-offs benefit the developer, not the user. The question arises: Is it justifiable for user-facing software to offload developer convenience to the runtime at the user’s expense?
 
 ## 2. GC is a Solution to a Developer Problem
+
+![GC](/gc.gif)
+
+
 Garbage collection addresses issues of memory safety and object lifecycle management, traditionally seen as burdensome or error-prone. While these are legitimate concerns, they are developer-side concerns—and thus, should be solved during development, not deferred to runtime.
 
 Modern alternatives like RAII (Resource Acquisition Is Initialization) in C++ and Rust’s ownership system provide deterministic, compile-time memory safety without runtime garbage collection. These models shift the responsibility where it belongs: onto the developer and the compiler, not the end user.
