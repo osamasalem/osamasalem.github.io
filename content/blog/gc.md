@@ -29,7 +29,7 @@ These trade-offs benefit the developer, not the user. The question arises: Is it
 
 ## 2. GC is a Solution to a Developer Problem
 
-![GC](/gc.gif)
+![GC](/GC.gif)
 
 
 Garbage collection addresses issues of memory safety and object lifecycle management, traditionally seen as burdensome or error-prone. While these are legitimate concerns, they are developer-side concerns—and thus, should be solved during development, not deferred to runtime.
