@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://osamasalem.github.io/</loc>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/about/</loc>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/blog/</loc>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/blog/circus-prgramming-in-multicore-era/</loc>
+        <lastmod>2025-05-06</lastmod>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/blog/rethinking-gc/</loc>
+        <lastmod>2025-05-07</lastmod>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/blog/unsafe-rust/</loc>
+        <lastmod>2025-05-12</lastmod>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/game/</loc>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/tags/</loc>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/tags/programming/</loc>
+    </url>
+    <url>
+        <loc>https://osamasalem.github.io/tags/rust/</loc>
+    </url>
+</urlset>
