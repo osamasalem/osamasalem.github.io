@@ -17,6 +17,8 @@ And it's not just C#. Java has JNI and `Unsafe` classes. Elixir has NIFs. Python
 
 Rust unsafe keyword is a pragmatic escape hatch to interact with the outer world, without switching the languages like in cases of managed/scripting languages (Go/Java/Python),
 
+It reminds me of `asm` keyword in C language, C language is very optimized language, though when we need further control with specific per-instructions tweaking or fine-tuned optimization, `asm` keyword is the choice. this does not mean that C language is not performant, but for specific engineering requirement, those turn on/off solutions make a lot of sense.
+
 In theory, in the Rust utopia—where Rust angels flutter beside unicorns under everlasting rainbows, running software on formally verified operating systems over safe hardware instruction sets—`unsafe` shouldn’t exist.
 
 But as this is not the case for the world, it will not be the case for Rust !
@@ -116,5 +118,7 @@ While healthy debate is important, sometimes it veers into philosophical overkil
 
 Memory-safe languages are not a new idea. What Rust did was shift the cost of enforcing safety from post-production (runtime crashes, CVEs, etc.) to pre-production (compile-time errors). That’s not perfection—but it’s a major leap forward.
 
-What Rust aims to achieve is the ability to write a vast sea of everyday, traditionally tasks like database access, file I/O, and network communication—safely, without touching unsafe at all. And when you truly need low-level access—say, to the operating system, hardware, or specialized performance-critical code—you isolate that logic into small islands of unsafe. It’s a model that preserves safety where it’s feasible, and gives you control only where it's absolutely necessary. Elegant, isn’t it?
+What Rust aims to achieve is the ability to write a vast sea of everyday, traditionally tasks like database access, file I/O, and network communication—safely, without touching unsafe at all. And when you truly need low-level access—say, to the operating system, hardware, or specialized performance-critical code—you isolate that logic into small islands of unsafe. It’s a model that preserves safety where it’s feasible, and gives you control only where it's absolutely necessary.
+
+But always, if you are on land, ships is not for you.
 

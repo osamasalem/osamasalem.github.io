@@ -67,4 +67,5 @@ Dipl. in Business Administration.
 Machine Learning Course, Score 98%.
 
 ### Contact
-- Email: [usamamsalem@yahoo.com](mailto:usamamsalem@yahoo.com)
+
+- Email: [osama.salem.blog@gmail.com](mailto:osama.salem.blog@gmail.com)
