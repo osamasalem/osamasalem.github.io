@@ -5,10 +5,7 @@ slug="moving-the-unmovable"
 [taxonomies]
 tags = ["programming","rust"]
 +++
-
-# Moving the unmovable: how to transafer ownership in Rust
-
-Good software design often requires carefully modeling ownership and data flow from the start. In Rust, this is especially important because ownership is at the core of the language. Sometimes, though, you need to move ownership of an object around—and for many developers coming from other languages, this feels unfamiliar and even frustrating.
+Good software design often requires carefully modeling ownership and data flow from the start. In Rust, this is especially important because ownership is at the core of the language. Sometimes, though, you need to move ownership of an object around- and for many developers coming from other languages, this feels unfamiliar and even frustrating.
 
 This post discusses techniques for moving owned objects in Rust.<!--more--> By default, Rust prevents you from simply “grabbing” an object out of another, because doing so might break invariants and leave objects in an invalid state.
 
@@ -19,7 +16,7 @@ Rust’s ownership model is built on two fundamental rules:
 
 From these rules, it follows that moving a child object out of its parent is normally prohibited, since it could invalidate the parent. In other words, Rust enforces a solid ownership tree: once objects are instantiated, their structure usually remains fixed.
 
-Note: We’re talking here about owned values, not primitives or Copy types.
+> Note: We’re talking here about owned values, not primitives or Copy types.
 
 To explore the options, we’ll use a computer setup as our example: a computer must have a monitor. Throughout the post we’ll see how to “move the monitor out of the setup” under different circumstances.
 
@@ -31,10 +28,10 @@ Before trying to move ownership directly, consider alternatives:
 - Shared ownership: If multiple objects need access, use `Arc<T>` or `Arc<RefCell<T>>`.
 - Cloning: `.clone()` gives you a copy (sometimes expensive, but valid). This doesn’t move the original, but in some cases that’s exactly what you want.
 
-## Break the safe and take his money
+## 1. Break the whole setup to get the child
 
 If you really want to extract a child, the simplest way is to destroy the parent.
-For example: to get the monitor, throw away the whole computer setup.
+For example: to get the monitor, throw away the whole computer setup. simple like that!!
 consider this snippet
 
 ```rust
@@ -53,9 +50,9 @@ fn drop_parent_take_child(mut parent: Parent) -> ((), Child) {
 
 This works, but if you had a deep ownership tree, you’d have to destroy the entire structure just to reach a leaf value- sometimes impractical.
 
-## Barter with the owner
+## 2. Barter with the owner
 
-What if you want the monitor, but don’t want to harm the computer? You can compensate the setup by replacing the child with similar monitor.
+What if you want the monitor, but don’t want to harm the computer? You can replace the monitor with similar one.
 
 check this
 
@@ -93,7 +90,7 @@ fn replace_with_default(mut parent: Parent) -> (Parent, Child) {
 }
 ```
 
-## Replace it with a placeholder
+## 3. Replace it with a placeholder
 
 Another approach is to make the parent more flexible. Instead of requiring a child, allow for the absence of one with Option.
 
@@ -112,10 +109,9 @@ fn take_and_fill_the_gap(mut parent: TolerantParent) -> (TolerantParent, Option<
 
 Now, the parent remains valid even if the child is missing. The cost is that you’ve moved some safety checks from compile time to runtime- None means “the child is gone.”
 
-# In containers things can be easier
+## 4. In containers things can be easier
 
-With collections, Rust often provides convenient APIs. For example, Vec::remove
-gives you ownership of an element while maintaining the rest:
+With collections, Rust often provides convenient APIs. For example, `Vec::remove` gives you ownership of an element while maintaining the rest:
 
 ```rust
 fn take_one_of_vec(parent: Vec<Child>) -> (Vec<Child>, Child) {
@@ -129,7 +125,7 @@ If your computer setup has multiple monitors, taking one doesn’t invalidate th
 
 But pay attention, that this may obey the general algorith call complexity cost. so if you are okay with that, no problem !!
 
-# Final Thoughts
+## Final Thoughts
 
 We’ve walked through several techniques for transferring ownership in Rust. The language forces us to preserve invariants and prevent invalid states- but within those rules, there are multiple strategies to move values around safely.
 
