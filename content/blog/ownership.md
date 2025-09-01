@@ -20,6 +20,33 @@ From these rules, it follows that moving a child object out of its parent is nor
 
 To explore the options, we’ll use a computer setup as our example: a computer must have a monitor. Throughout the post we’ll see how to “move the monitor out of the setup” under different circumstances.
 
+But first, Let's see the problem, and illustrate how Rust refuses to move objects around
+```rust
+struct Child;
+struct Parent {
+    child: Child,
+}
+
+fn lets_move_the_unmovable(parent: Parent) -> (Parent, Child) {
+    let child = parent.child;
+    (parent, child)
+}
+```
+
+this code will cause this comiler error
+```
+error[E0382]: use of partially moved value: `parent`
+ --> src\main.rs:8:6
+  |
+7 |     let child = parent.child;
+  |                 ------------ value partially moved here
+8 |     (parent, child)
+  |      ^^^^^^ value used here after partial move
+  |
+  = note: partial move occurs because `parent.child` has type `Child`, which does not implement the `Copy` trait
+
+```
+
 ## 0. Other means
 
 Before trying to move ownership directly, consider alternatives:
