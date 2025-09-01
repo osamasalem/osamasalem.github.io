@@ -1,5 +1,5 @@
 +++
-title="Moving the unmovable: how to transafer ownership in Rust"
+title="Moving the unmovable: how to transfer ownership in Rust"
 date=2025-08-22
 slug="moving-the-unmovable"
 [taxonomies]
