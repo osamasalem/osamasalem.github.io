@@ -117,6 +117,17 @@ fn replace_with_default(mut parent: Parent) -> (Parent, Child) {
 }
 ```
 
+Note: Usually, you `clone` the objects in Rust which is similar to bartering. but instead we get the clone out from the owned value, which we can not consider it as transfer ownership.
+
+```rust
+#[derive(Clone)]
+struct Child;
+
+fn replace_with_default(parent: Parent) -> (Parent, Child) {
+    (parent, parent.child.clone())
+}
+```
+
 ## 3. Replace it with a placeholder
 
 Another approach is to make the parent more flexible. Instead of requiring a child, allow for the absence of one with Option.
