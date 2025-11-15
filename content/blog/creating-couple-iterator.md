@@ -8,7 +8,7 @@ tags = ["programming","rust"]
 
 +++
 I was working on an N-body simulation in Rust, and I noticed a gap:
-Rust, out of the box, does not provide an iterator that can safely yield pairs of mutable references (&mut T) from a slice - without violating Rust’s borrowing rules.
+Rust, out of the box, does not provide an iterator that can safely yield pairs of mutable references (`&mut T`) from a slice - without violating Rust’s borrowing rules.
 
 So, I decided to implement one myself and dive once again into the world of unsafe Rust.
 <!--more-->
@@ -34,7 +34,9 @@ We want an iterator that produces pairs of distinct mutable references:
 In safe Rust, this is impossible- you can’t create two mutable references into the same slice at once without splitting it first.
 The borrow checker prevents this to ensure aliasing safety.
 
-However, we know that getting mutable references to different elements is perfectly safe - their memory regions don’t overlap. So, unsafe code is the only way forward.
+However, we know that getting mutable references to different elements is perfectly safe - their memory regions don’t overlap. So, unsafe code is the way to go.
+
+> You can -also- write this iterator if you split the array, but you have to add indeces and caching.. etc, Look! I chose to use unsafe !!
 
 ## Implementation
 > ⚠️ DISCLAIMER: This code is for demonstration purposes only. It is not optimized or production-ready, but it highlights the concept clearly.
@@ -42,24 +44,24 @@ However, we know that getting mutable references to different elements is perfec
 Let’s start with the iterator structure.
 A standard Rust slice iterator internally uses a `NonNull<T>` pointer to track the current element and walks until it reaches the end pointer.
 
+> [NonNull](https://doc.rust-lang.org/std/ptr/struct.NonNull.html) is **zero-cost-abstraction** new-type for **non-null pointers** (Pointers that impossible to be NULL)
+
 Here, we’ll maintain two pointers - one for each element of the pair:
 
 ```rust
 #[derive(Clone)]
 struct CouplesIterator<'a, T> {
-    first: NonNull<T>, // the first element in the pair tuple
-    second: NonNull<T>, // the second element in the pair tuple
-    end: *mut T, // the end pointer
-    _dummy: PhantomData<&mut 'a T>, // a friend to cover the presence of 'a
+    first: NonNull<T>,              // the first element in the pair tuple
+    second: NonNull<T>,             // the second element in the pair tuple
+    end: *mut T,                    // the end of slice pointer
+    _dummy: PhantomData<&mut 'a T>, // to tie the lifetime 'a
 }
 ```
+> [PhantomData](https://doc.rust-lang.org/std/marker/struct.PhantomData.html): is a **zero-sized placeholder** for **generic types** and **lifetimes** that are not involved in structs' data fileds (which probably used in implementations), whithout it, the compiler will complain that the generic/lifetime parameter is never used.
+
 The logic is simple:
 
-- `first` starts at the first element,
-- `second` starts one step ahead,
-- `second` advances until it reaches the end,
-
-when it does, first advances by one, and second resets to one step ahead of it.
+`first` starts at the first element, `second` starts one step ahead,`second` advances until it reaches the end, when it does, `first` advances by one, and second resets to one step ahead of it.
 
 If the slice has fewer than two elements, we stop immediately.
 
@@ -95,11 +97,11 @@ impl<'a, T: 'a> Iterator for CouplesIterator<'a, T> {
 ```
 
 ## ZST, Whooow!!! 👻
-This works fine for types with a nonzero size (e.g., i32, f64, etc.), but what happens if the type has zero size - like the unit type () or an empty struct?
+This works fine for types with a nonzero size (e.g., `i32`, `f64`, etc.), but what happens if the type has zero size - like the unit type () or an empty struct?
 
 consider this
 ```rust
-struct ZeroSizedTypes;W
+struct ZeroSizedTypes;
 ```
 
 For ZSTs, all instances have the same address (Rust guarantees they’re logically distinct but occupy no memory).
@@ -114,24 +116,32 @@ enum IterationMode<T> {
     Pointer(*mut T),
 }
 ```
-(Interestingly, the Rust standard library optimizes this internally - since `*mut T` and `usize` have the same size and alignment, it reuses the same field for both cases.)
+Interestingly, the Rust standard library optimizes this internally - since `*mut T` and `usize` have the same size and alignment, it reuses the same field for both cases.
 
 ```rust
 if mem::size_of::<T>() == 0 {
-    /* Zero size */
+    /* Zero size: end as usize */
 } else {
-    /* Non zero size */
+    /* Non zero size: end as pointer */
 }
 ```
+
+## Safety Note on ZST Aliasing\
+
 You might wonder:
 
-> “If both pointers refer to the same object, isn’t it UB to create two mutable references to it?”
+> “If all pointers refer to the same object, isn’t it UB to create two mutable references from one mutable pointer?”
 
 Normally yes- except for ZSTs. Since ZSTs occupy no memory, aliasing doesn’t lead to any data overlap or race conditions. as they are all ending up being no-ops.
 
-So, we can safely create multiple &mut references to the same ZST value.
+So, we can safely create multiple `&mut` references to the same ZST value.
 
 ```rust
+use std::*;
+use std::mem::*;
+use std::ptr::NonNull;
+use std::marker::PhantomData;
+
 trait SliceEx<'a, T>
 where
     T: Sized,
@@ -146,11 +156,9 @@ impl<'a, T> SliceEx<'a, T> for &'a mut [T] {
 
             let first = NonNull::from_mut(self).cast();
 
-            let (second, end) = if mem::size_of::<T>() == 0 {
+            let (second, end) = if mem::size_of::<T>() == 0 || len < 2 {
                 let count = len * len.wrapping_sub(1) /2;
                 (first, IterationMode::Count(count))
-            } else if len < 2 {
-                (first, IterationMode::Count(0))
             } else {
                 (
                     first.add(1),
@@ -234,5 +242,7 @@ fn main() {
 
 I really enjoyed this deep dive - tinkering at a low level in Rust is always fun and enlightening.
 This experiment revealed interesting edge cases, especially around ZST aliasing and iterator design in unsafe Rust.
+
+Handling ZSTs is also discussed in the [Rustonomicon](https://doc.rust-lang.org/nomicon/vec/vec-zsts.html) which takes a different approach to dealing with them. I personally find that method a bit more of a gimmicky - but it’s definitely worth checking out if you’re curious.
 
 I made a few assumptions and simplifications for clarity, so if you spot something worth improving, please reach out or comment - I’d love to hear your thoughts!
