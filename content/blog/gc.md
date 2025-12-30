@@ -81,4 +81,3 @@ Garbage collection solves real problems, but it is not a silver bullet. Develope
 
 Our goal should be clear: to deliver robust software that respects user resources, and to take full ownership of the systems we build—including their memory lifecycles.
 
-**By Osama Salem (and ChatGPT as technical sounding board)**
