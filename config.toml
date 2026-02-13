@@ -1,6 +1,6 @@
 # The URL the site will be built for
 base_url = "https://osamasalem.github.io/"
-
+title = "Amaso Melas"
 slugify.taxonomies = "on"
 taxonomies = [{ name = "tags", feed = true }]
 [markdown]
