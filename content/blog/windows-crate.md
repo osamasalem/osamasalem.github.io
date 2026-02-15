@@ -5,7 +5,8 @@ slug="windows-crate"
 [taxonomies]
 tags = ["programming","rust"]
 +++
-The [windows crate](https://crates.io/crates/windows) is the Rust package that provides Rust-friendly bindings to the Windows API, which is essential for any kind of serious system programming on Windows.<!--more-->
+The [windows crate](https://crates.io/crates/windows) is the Rust package from Microsoft that provides Rust-friendly bindings to the Windows API, which is essential for any kind of serious system programming on Windows.
+<!--more-->
 
 I’ve used this package in a couple of recent projects, working with both Microsoft provided crates: `windows` and `windows-sys`. This post focuses on my experience and thoughts about the former.
 
@@ -28,6 +29,8 @@ Another mild annoyance is the feature-gating model. Mapping APIs to crate featur
 I’m not sure what the perfect solution is here. Maybe some commonly used APIs could be included in more accessible `default` feature sets,but that’s easier said than done.
 
 It would also be nice if more of the Microsoft API documentation were surfaced directly in `docs.rs`. This is a minor complaint, but it would improve discoverability and ergonomics.
+
+As in the good side of COM and RAII of windows crate, There are some bad faces where allocated array of COM objects are not handled idiomatically in RAII, So it is worth-mentioning that you have to handle it yourself using something like [CoTaskMemFree](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cotaskmemfree).
 
 ## The awkward
 
