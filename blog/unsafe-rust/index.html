@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    Unsafe Rust
+</h1>
+
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;programming&#x2F;" class="tag">  #programming</a>
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;rust&#x2F;" class="tag">  #rust</a>
+
+<p class="subtitle"><strong>2025-05-12</strong></p>
+<p>Back in college, I overheard a group of students discussing something interesting: C#, Microsoft's proposed alternative to C++ and their own dialect of Java. I asked, “What about accessing low-level data types and structures?” Someone responded, “You can use <code>unsafe</code> blocks to access pointers freely and interoperate with the newly introduced .NET CLR.” The CLR, of course, allows you to write code in VB, C#, or even C++.</p>
+<span id="continue-reading"></span>
+<p>The <code>unsafe</code> feature in C# was intended to grant access to pointers while isolating such operations from the rest of the safe program.</p>
+<p>C# is considered one of the <em>memory-safe languages</em>, despite the presence of <code>unsafe</code>. No one seriously questioned its safety model just because of this feature. That’s because safe languages don't exist in a vacuum. In the real world, we often have to bridge the gap between safe environments and the messy, unsafe outer world.</p>
+<p>And it's not just C#. Java has JNI and <code>Unsafe</code> classes. Elixir has NIFs. Python has Cython and C extensions. These don’t compromise the core safety model of the language—they complement it.</p>
+<p>Rust unsafe keyword is a pragmatic escape hatch to interact with the outer world, without switching the languages like in cases of managed/scripting languages (Go/Java/Python),</p>
+<p>It reminds me of <code>asm</code> keyword in C language, C language is very optimized language, though when we need further control with specific per-instructions tweaking or fine-tuned optimization, <code>asm</code> keyword is the choice. this does not mean that C language is not performant, but for specific engineering requirement, those turn on/off solutions make a lot of sense.</p>
+<p>In theory, in the Rust utopia—where Rust angels flutter beside unicorns under everlasting rainbows, running software on formally verified operating systems over safe hardware instruction sets—<code>unsafe</code> shouldn’t exist.</p>
+<p>But as this is not the case for the world, it will not be the case for Rust !</p>
+<h2 id="what-is-unsafe-rust">What is unsafe Rust.</h2>
+<p>Let’s begin with a simple but essential concept. Consider the following code:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #5A6673;font-style: italic;">///# Safety</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">/// This will summon a demon from hell</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">unsafe fn</span><span style="color: #FFB454;"> summon_demon</span><span>()</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> Demon</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    Demon</span><span>(</span><span style="color: #D2A6FF;">666</span><span>)</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    unsafe</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">        let</span><span> satan</span><span style="color: #F29668;"> =</span><span style="color: #FFB454;"> summon_demon</span><span>();</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>Looks like a normal function, right? It is. But it’s marked as unsafe because the implementers determined it could lead to undefined or erroneous behavior if misused. (And maybe some biblical implications, depending on your architecture. 😅)</p>
+<p>Here, the unsafe keyword acts as a marker. It signals to developers and reviewers that this code deserves extra scrutiny. Think of it as code highlighting—literal function coloring.</p>
+<p>What’s critical to understand is that the kinds of issues unsafe code can introduce are fundamentally unpresentable in Rust’s type system or runtime checks. It’s not that the compiler or runtime is neglecting to help—it’s that these operations lie beyond what can be statically verified or dynamically enforced. That’s why they’re marked unsafe: not because they are necessarily dangerous, but because their safety cannot be proven by the language.</p>
+<p>Notice the doc comment above the function? It's not enforced by the compiler, but linters strongly recommend adding such safety notes to describe any preconditions, assumptions, or hazards relevant to the unsafe code.</p>
+<p>In my opinion, the word unsafe might even be misleading. Maybe terms like unverifiable or unfalsifiable are more accurate. Because what’s marked unsafe might be perfectly safe in many contexts—it's just that the compiler can't guarantee it.</p>
+<h2 id="what-unsafe-does-that-really-mean">what Unsafe does that really mean</h2>
+<p>As we said, unsafe is just a marker—it doesn’t turn off Rust’s safety checks. It simply unlocks certain extra operations. According to <a rel="noopener external" target="_blank" href="https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html#unsafe-superpowers">Rust book</a> these include:</p>
+<ul>
+<li>Dereference a raw pointer</li>
+<li>Call an unsafe function or method</li>
+<li>Access or modify a mutable static variable</li>
+<li>Implement an unsafe trait</li>
+<li>Access fields of a <code>union</code></li>
+</ul>
+<p>It’s important to emphasize:</p>
+<blockquote>
+<p>All of Rust’s safety guarantees remain intact inside unsafe blocks—unless you explicitly use these operations.</p>
+</blockquote>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    unsafe</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">        let</span><span> hello</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> String</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">from</span><span>(</span><span style="color: #AAD94C;">&quot;hello&quot;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">        let</span><span> another_hello</span><span style="color: #F29668;"> =</span><span> hello;</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">        println!</span><span>(</span><span style="color: #AAD94C;">&quot;{hello}&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>This code will raise this error</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="plain"><span class="giallo-l"><span>error[E0382]: borrow of moved value: `hello`</span></span>
+<span class="giallo-l"><span>  --&gt; src\main.rs:10:19</span></span>
+<span class="giallo-l"><span>   |</span></span>
+<span class="giallo-l"><span>8  |         let hello = String::from(&quot;hello&quot;);</span></span>
+<span class="giallo-l"><span>   |             ----- move occurs because `hello` has type `String`, which does not implement the `Copy` trait</span></span>
+<span class="giallo-l"><span>9  |         let another_hello = hello;</span></span>
+<span class="giallo-l"><span>   |                             ----- value moved here</span></span>
+<span class="giallo-l"><span>10 |         println!(&quot;{hello}&quot;);</span></span>
+<span class="giallo-l"><span>   |                   ^^^^^^^ value borrowed here after move</span></span>
+<span class="giallo-l"><span>   |</span></span>
+<span class="giallo-l"><span>   = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)</span></span>
+<span class="giallo-l"><span>help: consider cloning the value if the performance cost is acceptable</span></span>
+<span class="giallo-l"><span>   |</span></span>
+<span class="giallo-l"><span>9  |         let another_hello = hello.clone();</span></span>
+<span class="giallo-l"><span>   |                                  ++++++++</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>But wait—we’re in an unsafe block, right? Yes, but safety checks still apply unless you’re doing one of the explicitly unsafe operations listed above.</p>
+<p>In fact, every unsafe operation in Rust typically has a safe counterpart: pointers correspond to references, mutable statics to RefCells, etc.</p>
+<h2 id="but-why">But Why ?</h2>
+<p>As mentioned, unsafe is a pragmatic escape hatch for rare, specific scenarios. I’ll borrow (with respect!) from <a rel="noopener external" target="_blank" href="https://youtu.be/QAz-maaH0KM?t=83">Jon Gjengset's charming speech from Rust NYC meet up 2019</a> but rephrase in my own words:</p>
+<ul>
+<li>Interfacing with non-Rust ecosystems (e.g., C libraries/ OS syscalls/ Controllers memory or interrupts)</li>
+<li>Building performance-critical abstractions that can’t be expressed in safe Rust</li>
+</ul>
+<p>Even in these cases, we encapsulate the unsafe code inside safe abstractions. It’s like wiring electricity behind the walls—unsafe at the core, but safe at the surface.</p>
+<p>From experience: don’t jump to unsafe immediately. Often, there is a safe Rust way to achieve what you need, even if it’s not well-known. I’ve personally rushed into unsafe, only to later discover a beautiful, idiomatic solution in safe Rust.</p>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>One thing that puzzled me: once Rust gained traction, people—often with differing motives—started questioning the very definition of memory safety. What is memory safety, anyway? How do we distinguish between memory-safe languages and memory-safe outputs?</p>
+<p>While healthy debate is important, sometimes it veers into philosophical overkill. We end up asking “What is the Sun? What is the Moon? What are trees?”—as if software engineering were invented yesterday.</p>
+<p>Memory-safe languages are not a new idea. What Rust did was shift the cost of enforcing safety from post-production (runtime crashes, CVEs, etc.) to pre-production (compile-time errors). That’s not perfection—but it’s a major leap forward.</p>
+<p>What Rust aims to achieve is the ability to write a vast sea of everyday, traditionally tasks like database access, file I/O, and network communication—safely, without touching unsafe at all. And when you truly need low-level access—say, to the operating system, hardware, or specialized performance-critical code—you isolate that logic into small islands of unsafe. It’s a model that preserves safety where it’s feasible, and gives you control only where it's absolutely necessary.</p>
+<p>But always, if you are on land, ships is not for you.</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>

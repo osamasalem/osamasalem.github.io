@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    Creating couple iterator: Another dive into unsafe Rust!!
+</h1>
+
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;programming&#x2F;" class="tag">  #programming</a>
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;rust&#x2F;" class="tag">  #rust</a>
+
+<p class="subtitle"><strong>2025-10-29</strong></p>
+<p>I was working on an N-body simulation in Rust, and I noticed a gap:
+Rust, out of the box, does not provide an iterator that can safely yield pairs of mutable references (<code>&amp;mut T</code>) from a slice - without violating Rust’s borrowing rules.</p>
+<p>So, I decided to implement one myself and dive once again into the world of unsafe Rust.</p>
+<span id="continue-reading"></span>
+<p>In my simulation, I needed a way to handle pairwise interactions - forces and collisions between two bodies - and update their positions and velocities through mutable references.
+This pattern is quite common in game development and physics simulations.</p>
+<p>Imagine we have:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">let</span><span> myvec</span><span style="color: #F29668;"> =</span><span style="color: #FFB454;"> vec!</span><span>[</span><span style="color: #D2A6FF;">1</span><span>,</span><span style="color: #D2A6FF;"> 2</span><span>,</span><span style="color: #D2A6FF;"> 3</span><span>,</span><span style="color: #D2A6FF;"> 4</span><span>];</span></span></code></pre>
+<p>We want an iterator that produces pairs of distinct mutable references:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 1</span><span>,</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 2</span><span>)</span></span>
+<span class="giallo-l"><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 1</span><span>,</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 3</span><span>)</span></span>
+<span class="giallo-l"><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 1</span><span>,</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 4</span><span>)</span></span>
+<span class="giallo-l"><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 2</span><span>,</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 3</span><span>)</span></span>
+<span class="giallo-l"><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 2</span><span>,</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 4</span><span>)</span></span>
+<span class="giallo-l"><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 3</span><span>,</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #D2A6FF;"> 4</span><span>)</span></span></code></pre>
+<p>In safe Rust, this is impossible- you can’t create two mutable references into the same slice at once without splitting it first.
+The borrow checker prevents this to ensure aliasing safety.</p>
+<p>However, we know that getting mutable references to different elements is perfectly safe - their memory regions don’t overlap. So, unsafe code is the way to go.</p>
+<blockquote>
+<p>You can -also- write this iterator if you split the array, but you have to add indeces and caching.. etc, Look! I chose to use unsafe !!</p>
+</blockquote>
+<h2 id="implementation">Implementation</h2>
+<blockquote>
+<p>⚠️ DISCLAIMER: This code is for demonstration purposes only. It is not optimized or production-ready, but it highlights the concept clearly.</p>
+</blockquote>
+<p>Let’s start with the iterator structure.
+A standard Rust slice iterator internally uses a <code>NonNull&lt;T&gt;</code> pointer to track the current element and walks until it reaches the end pointer.</p>
+<blockquote>
+<p><a rel="noopener external" target="_blank" href="https://doc.rust-lang.org/std/ptr/struct.NonNull.html">NonNull</a> is <strong>zero-cost-abstraction</strong> new-type for <strong>non-null pointers</strong> (Pointers that impossible to be NULL)</p>
+</blockquote>
+<p>Here, we’ll maintain two pointers - one for each element of the pair:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span>#[derive(</span><span style="color: #59C2FF;">Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> CouplesIterator</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    first</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> NonNull</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;,</span><span style="color: #5A6673;font-style: italic;">              // the first element in the pair tuple</span></span>
+<span class="giallo-l"><span>    second</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> NonNull</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;,</span><span style="color: #5A6673;font-style: italic;">             // the second element in the pair tuple</span></span>
+<span class="giallo-l"><span>    end</span><span style="color: #F29668;">: *</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> T</span><span>,</span><span style="color: #5A6673;font-style: italic;">                    // the end of slice pointer</span></span>
+<span class="giallo-l"><span>    _dummy</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> PhantomData</span><span>&lt;</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span> &#39;</span><span style="color: #59C2FF;">a T</span><span>&gt;,</span><span style="color: #5A6673;font-style: italic;"> // to tie the lifetime &#39;a</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<blockquote>
+<p><a rel="noopener external" target="_blank" href="https://doc.rust-lang.org/std/marker/struct.PhantomData.html">PhantomData</a>: is a <strong>zero-sized placeholder</strong> for <strong>generic types</strong> and <strong>lifetimes</strong> that are not involved in structs' data fileds (which probably used in implementations), whithout it, the compiler will complain that the generic/lifetime parameter is never used.</p>
+</blockquote>
+<p>The logic is simple:</p>
+<p><code>first</code> starts at the first element, <code>second</code> starts one step ahead,<code>second</code> advances until it reaches the end, when it does, <code>first</code> advances by one, and second resets to one step ahead of it.</p>
+<p>If the slice has fewer than two elements, we stop immediately.</p>
+<p>Here’s a simplified version of <code>next()</code>:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span style="color: #F29668;">:</span><span> &#39;</span><span style="color: #59C2FF;">a</span><span>&gt;</span><span style="color: #59C2FF;"> Iterator</span><span style="color: #FF8F40;"> for</span><span style="color: #59C2FF;"> CouplesIterator</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    type</span><span style="color: #59C2FF;"> Item</span><span style="color: #F29668;"> =</span><span> (</span><span style="color: #F29668;">&amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span style="color: #59C2FF;"> T</span><span>,</span><span style="color: #F29668;"> &amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span style="color: #59C2FF;"> T</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    fn</span><span style="color: #FFB454;"> next</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #39BAE6;font-style: italic;"> self</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #39BAE6;font-style: italic;">Self</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">Item</span><span>&gt; {</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">        unsafe</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">            //...</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            if</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_ptr</span><span>()</span><span style="color: #F29668;"> ==</span><span> end {</span></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">                self</span><span style="color: #F29668;">.</span><span>first </span><span style="color: #F29668;">=</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">                self</span><span style="color: #F29668;">.</span><span>second </span><span style="color: #F29668;">=</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>);</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            if</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_ptr</span><span>()</span><span style="color: #F29668;"> ==</span><span> end</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">sub</span><span>(</span><span style="color: #D2A6FF;">1</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                return</span><span style="color: #59C2FF;"> None</span><span>;</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            let</span><span> first</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_mut</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            let</span><span> second</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_mut</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">            self</span><span style="color: #F29668;">.</span><span>second </span><span style="color: #F29668;">=</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #59C2FF;">            Some</span><span>((first, second))</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre><h2 id="zst-whooow-ghost">ZST, Whooow!!! 👻</h2>
+<p>This works fine for types with a nonzero size (e.g., <code>i32</code>, <code>f64</code>, etc.), but what happens if the type has zero size - like the unit type () or an empty struct?</p>
+<p>consider this</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> ZeroSizedTypes</span><span>;</span></span></code></pre>
+<p>For ZSTs, all instances have the same address (Rust guarantees they’re logically distinct but occupy no memory).
+This means our pointer-based approach breaks down- first, second, and end all point to the same location!</p>
+<p>To handle this safely, we can fall back to an iteration counter instead of pointer arithmetic.The total number of pairs is <code>n * (n - 1) / 2</code>, where <code>n</code> is the slice length.</p>
+<p>We can encode both cases (ZST and non-ZST) using an enum:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">enum</span><span style="color: #59C2FF;"> IterationMode</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    Count</span><span>(</span><span style="color: #59C2FF;">usize</span><span>),</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    Pointer</span><span>(</span><span style="color: #F29668;">*</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> T</span><span>),</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Interestingly, the Rust standard library optimizes this internally - since <code>*mut T</code> and <code>usize</code> have the same size and alignment, it reuses the same field for both cases.</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">if</span><span style="color: #59C2FF;"> mem</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">size_of</span><span style="color: #F29668;">::</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;()</span><span style="color: #F29668;"> ==</span><span style="color: #D2A6FF;"> 0</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    /* Zero size: end as usize */</span></span>
+<span class="giallo-l"><span>}</span><span style="color: #FF8F40;"> else</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    /* Non zero size: end as pointer */</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre><h2 id="safety-note-on-zst-aliasing">Safety Note on ZST Aliasing\</h2>
+<p>You might wonder:</p>
+<blockquote>
+<p>“If all pointers refer to the same object, isn’t it UB to create two mutable references from one mutable pointer?”</p>
+</blockquote>
+<p>Normally yes- except for ZSTs. Since ZSTs occupy no memory, aliasing doesn’t lead to any data overlap or race conditions. as they are all ending up being no-ops.</p>
+<p>So, we can safely create multiple <code>&amp;mut</code> references to the same ZST value.</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">use</span><span style="color: #59C2FF;"> std</span><span style="color: #F29668;">::*</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">use</span><span style="color: #59C2FF;"> std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">mem</span><span style="color: #F29668;">::*</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">use</span><span style="color: #59C2FF;"> std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">ptr</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">NonNull</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">use</span><span style="color: #59C2FF;"> std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">marker</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">PhantomData</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">trait</span><span style="color: #59C2FF;"> SliceEx</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">where</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    T</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Sized</span><span>,</span></span>
+<span class="giallo-l"><span>{</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    fn</span><span style="color: #FFB454;"> couples_mut</span><span>(</span><span style="color: #39BAE6;font-style: italic;">self</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> CouplesIterator</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;;</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;</span><span style="color: #59C2FF;"> SliceEx</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;</span><span style="color: #FF8F40;"> for</span><span style="color: #F29668;"> &amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span> [</span><span style="color: #59C2FF;">T</span><span>] {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    fn</span><span style="color: #FFB454;"> couples_mut</span><span>(</span><span style="color: #39BAE6;font-style: italic;">self</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> CouplesIterator</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">        unsafe</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            let</span><span> len</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">len</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            let</span><span> first</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> NonNull</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">from_mut</span><span>(</span><span style="color: #39BAE6;font-style: italic;">self</span><span>)</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">cast</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            let</span><span> (second, end)</span><span style="color: #F29668;"> =</span><span style="color: #FF8F40;"> if</span><span style="color: #59C2FF;"> mem</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">size_of</span><span style="color: #F29668;">::</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;()</span><span style="color: #F29668;"> ==</span><span style="color: #D2A6FF;"> 0</span><span style="color: #F29668;"> ||</span><span> len</span><span style="color: #F29668;"> &lt;</span><span style="color: #D2A6FF;"> 2</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                let</span><span> count</span><span style="color: #F29668;"> =</span><span> len</span><span style="color: #F29668;"> *</span><span> len</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">wrapping_sub</span><span>(</span><span style="color: #D2A6FF;">1</span><span>)</span><span style="color: #F29668;"> /</span><span style="color: #D2A6FF;">2</span><span>;</span></span>
+<span class="giallo-l"><span>                (first,</span><span style="color: #59C2FF;"> IterationMode</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">Count</span><span>(count))</span></span>
+<span class="giallo-l"><span>            }</span><span style="color: #FF8F40;"> else</span><span> {</span></span>
+<span class="giallo-l"><span>                (</span></span>
+<span class="giallo-l"><span>                    first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>),</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">                    IterationMode</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">Pointer</span><span>(first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(len)</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_ptr</span><span>()),</span></span>
+<span class="giallo-l"><span>                )</span></span>
+<span class="giallo-l"><span>            };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #59C2FF;">            CouplesIterator</span><span> {</span></span>
+<span class="giallo-l"><span>                first,</span></span>
+<span class="giallo-l"><span>                second,</span></span>
+<span class="giallo-l"><span>                end,</span></span>
+<span class="giallo-l"><span>                _dummy</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> PhantomData</span><span>,</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>#[derive(</span><span style="color: #59C2FF;">Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">enum</span><span style="color: #59C2FF;"> IterationMode</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    Count</span><span>(</span><span style="color: #59C2FF;">usize</span><span>),</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    Pointer</span><span>(</span><span style="color: #F29668;">*</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> T</span><span>),</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>#[derive(</span><span style="color: #59C2FF;">Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> CouplesIterator</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    first</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> NonNull</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    second</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> NonNull</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    end</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> IterationMode</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    _dummy</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> PhantomData</span><span>&lt;</span><span style="color: #F29668;">&amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span style="color: #59C2FF;"> T</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;</span><span style="color: #59C2FF;"> Iterator</span><span style="color: #FF8F40;"> for</span><span style="color: #59C2FF;"> CouplesIterator</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    type</span><span style="color: #59C2FF;"> Item</span><span style="color: #F29668;"> =</span><span> (</span><span style="color: #F29668;">&amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span style="color: #59C2FF;"> T</span><span>,</span><span style="color: #F29668;"> &amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span style="color: #59C2FF;"> T</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    fn</span><span style="color: #FFB454;"> next</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #39BAE6;font-style: italic;"> self</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #39BAE6;font-style: italic;">Self</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">Item</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">        unsafe</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">            match</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>end {</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">                IterationMode</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">Count</span><span>(</span><span style="color: #FF8F40;">ref mut</span><span> count)</span><span style="color: #F29668;"> =&gt;</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    if</span><span style="color: #F29668;"> *</span><span>count</span><span style="color: #F29668;"> ==</span><span style="color: #D2A6FF;"> 0</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                        return</span><span style="color: #59C2FF;"> None</span><span>;</span></span>
+<span class="giallo-l"><span>                    }</span></span>
+<span class="giallo-l"><span style="color: #F29668;">                    *</span><span>count</span><span style="color: #F29668;"> -=</span><span style="color: #D2A6FF;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    let</span><span> first</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_mut</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    let</span><span> second</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_mut</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">                    Some</span><span>((first, second))</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">                IterationMode</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">Pointer</span><span>(end)</span><span style="color: #F29668;"> =&gt;</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    if</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_ptr</span><span>()</span><span style="color: #F29668;"> ==</span><span> end {</span></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">                        self</span><span style="color: #F29668;">.</span><span>first </span><span style="color: #F29668;">=</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">                        self</span><span style="color: #F29668;">.</span><span>second </span><span style="color: #F29668;">=</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>);</span></span>
+<span class="giallo-l"><span>                    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    if</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_ptr</span><span>()</span><span style="color: #F29668;"> ==</span><span> end</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">sub</span><span>(</span><span style="color: #D2A6FF;">1</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                        return</span><span style="color: #59C2FF;"> None</span><span>;</span></span>
+<span class="giallo-l"><span>                    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    let</span><span> first</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>first</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_mut</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">                    let</span><span> second</span><span style="color: #F29668;"> =</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">as_mut</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">                    self</span><span style="color: #F29668;">.</span><span>second </span><span style="color: #F29668;">=</span><span style="color: #39BAE6;font-style: italic;"> self</span><span style="color: #F29668;">.</span><span>second</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">add</span><span>(</span><span style="color: #D2A6FF;">1</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #59C2FF;">                    Some</span><span>((first, second))</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>#[derive(</span><span style="color: #59C2FF;">Debug</span><span>,</span><span style="color: #59C2FF;"> Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> S</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> k</span><span style="color: #F29668;">: &amp;</span><span style="color: #FF8F40;">mut</span><span> [</span><span style="color: #59C2FF;">i32</span><span>]</span><span style="color: #F29668;"> = &amp;</span><span style="color: #FF8F40;">mut</span><span> [</span><span style="color: #D2A6FF;">1</span><span>,</span><span style="color: #D2A6FF;"> 2</span><span>,</span><span style="color: #D2A6FF;"> 3</span><span>,</span><span style="color: #D2A6FF;"> 4</span><span>];</span></span>
+<span class="giallo-l"><span>    k</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">couples_mut</span><span>()</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">for_each</span><span>(</span><span style="color: #F29668;">|</span><span>(a, b)</span><span style="color: #F29668;">|</span><span style="color: #59C2FF;"> mem</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">swap</span><span>(a, b));</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre><h2 id="final-words">Final words</h2>
+<p>I really enjoyed this deep dive - tinkering at a low level in Rust is always fun and enlightening.
+This experiment revealed interesting edge cases, especially around ZST aliasing and iterator design in unsafe Rust.</p>
+<p>Handling ZSTs is also discussed in the <a rel="noopener external" target="_blank" href="https://doc.rust-lang.org/nomicon/vec/vec-zsts.html">Rustonomicon</a> which takes a different approach to dealing with them. I personally find that method a bit more of a gimmicky - but it’s definitely worth checking out if you’re curious.</p>
+<p>I made a few assumptions and simplifications for clarity, so if you spot something worth improving, please reach out or comment - I’d love to hear your thoughts!</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>

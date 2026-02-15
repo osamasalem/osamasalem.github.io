@@ -1,0 +1,100 @@
+body {
+    background-color: #031113;
+    color: #8ab9f6;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 23px;
+    margin: 0;
+    padding: 20px 100px 0px 100px
+}
+
+p>code {
+    color: #f90;
+    background-color: #010809;
+    border-style: solid;
+    border-color: #4e3004;
+    border-width: 1px;
+    padding-left: 10px;
+    padding-right: 10px
+}
+
+footer {
+    padding-top: 50px;
+    text-align: center
+}
+
+header h1 {
+    color: #e1b769;
+    height: 100px
+}
+
+h2::before {
+    content: ":: ";
+}
+
+h3::before {
+    content: "# ";
+}
+
+h1 {
+
+    color: #fff
+}
+
+h2 {
+    padding-top: 50px;
+    color: #f4f0aa
+}
+
+h3 {
+    padding-top: 50px;
+    color: #b9f4aa
+}
+
+strong {
+    color: #b6d2f6
+}
+
+a {
+    color: #c856fd;
+    font-weight: 1000;
+    text-decoration: none
+}
+
+hr {
+    border-color: #a09f9f
+}
+
+pre {
+    padding: 20px
+}
+
+li::marker {
+    color: #b9f4aa
+}
+
+a.tag {
+    color: #a09f9f;
+}
+
+
+span.icon {
+    margin-right: 30px;
+    padding: 0px 30px;
+    background-size: contain;
+    background-image: url("icon.png");
+    border-radius: 50px;
+}
+
+blockquote {
+    border-left: 6px solid #9fa09f;
+    padding-left: 20px;
+    font-weight: 1000;
+    font-size: larger;
+    color: #b0b1b0
+}
+
+
+.jetbrains-mono {
+    font-family: "JetBrains Mono", monospace;
+    font-optical-sizing: auto;
+}

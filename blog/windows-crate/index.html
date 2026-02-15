@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    Windows crate: The good, the bad and the awkward.
+</h1>
+
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;programming&#x2F;" class="tag">  #programming</a>
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;rust&#x2F;" class="tag">  #rust</a>
+
+<p class="subtitle"><strong>2026-02-13</strong></p>
+<p>The <a rel="noopener external" target="_blank" href="https://crates.io/crates/windows">windows crate</a> is the Rust package from Microsoft that provides Rust-friendly bindings to the Windows API, which is essential for any kind of serious system programming on Windows.</p>
+<span id="continue-reading"></span>
+<p>I’ve used this package in a couple of recent projects, working with both Microsoft provided crates: <code>windows</code> and <code>windows-sys</code>. This post focuses on my experience and thoughts about the former.</p>
+<h2 id="the-good">The good</h2>
+<p>The API coverage is honestly impressive (much more than I initially expected). The granularity of what’s exposed is mindblowing: even very small ABI-level details are covered. That alone deserves appreciation.</p>
+<p>Another big win is error handling. Wrapping Windows error codes inside Rust’s <code>Result&lt;T, E&gt;</code>, with automatic error message translation, is a huge quality-of-life improvement. Anyone who has wrestled with <a rel="noopener external" target="_blank" href="https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-formatmessagew">FormatMessageW</a> knows how painful that can be, so this abstraction is something I genuinely love.</p>
+<p>COM handling is also well done. Reference counting via RAII fits naturally into Rust’s ownership model, and pairing it with explicit Clone semantics and automatic Drop feels correct and intuitive. Once you internalize it, there’s very little mental overhead.</p>
+<h2 id="the-bad">The bad</h2>
+<p>Some Windows APIs are inline functions (i.e. <a rel="noopener external" target="_blank" href="https://learn.microsoft.com/en-us/windows/win32/api/mfapi/nf-mfapi-mfgetattributesize">MFGetAttributeSize</a> they’re part of the Windows API surface but not part of the ABI). These functions are documented on Microsoft Learn, but they don’t exist as exported symbols, so they’re understandably missing from the windows crate.</p>
+<p>Porting them manually isn’t difficult, but it is a bit annoying, especially when the documentation exists and the function feels “official.”</p>
+<p>Another mild annoyance is the feature-gating model. Mapping APIs to crate features using the <a rel="noopener external" target="_blank" href="https://microsoft.github.io/windows-rs/features/">official metadata site</a> is actually quite well done, the site is simple and effective,but needing to add a Cargo feature just to call a single API can feel gimmicky.</p>
+<p>I’m not sure what the perfect solution is here. Maybe some commonly used APIs could be included in more accessible <code>default</code> feature sets,but that’s easier said than done.</p>
+<p>It would also be nice if more of the Microsoft API documentation were surfaced directly in <code>docs.rs</code>. This is a minor complaint, but it would improve discoverability and ergonomics.</p>
+<p>As in the good side of COM and RAII of windows crate, There are some bad faces where allocated array of COM objects are not handled idiomatically in RAII, So it is worth-mentioning that you have to handle it yourself using something like <a rel="noopener external" target="_blank" href="https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cotaskmemfree">CoTaskMemFree</a>.</p>
+<h2 id="the-awkward">The awkward</h2>
+<p>Some Windows APIs really cry out for idiomatic Rust equivalents.</p>
+<p>In the process of preserving Win32 API compatibility and layering Rust safety on top, you sometimes end up with signatures that look… strange:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">pub unsafe fn</span><span style="color: #FFB454;"> MFEnumDeviceSources</span><span>&lt;</span><span style="color: #59C2FF;">P0</span><span>&gt;(</span></span>
+<span class="giallo-l"><span>    pattributes</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> P0</span><span>,</span></span>
+<span class="giallo-l"><span>    pppsourceactivate</span><span style="color: #F29668;">: *</span><span style="color: #FF8F40;">mut</span><span style="color: #F29668;"> *</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #59C2FF;">IMFActivate</span><span>&gt;,</span><span style="color: #5A6673;font-style: italic;"> // Wha..?</span></span>
+<span class="giallo-l"><span>    pcsourceactivate</span><span style="color: #F29668;">: *</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> u32</span><span>,</span></span>
+<span class="giallo-l"><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> Result</span><span>&lt;()&gt;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">where</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    P0</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Param</span><span>&lt;</span><span style="color: #59C2FF;">IMFAttributes</span><span>&gt;;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">pub unsafe fn</span><span style="color: #FFB454;"> ReadSample</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #F29668;">    &amp;</span><span style="color: #39BAE6;font-style: italic;">self</span><span>,</span></span>
+<span class="giallo-l"><span>    dwstreamindex</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> u32</span><span>,</span></span>
+<span class="giallo-l"><span>    dwcontrolflags</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> u32</span><span>,</span></span>
+<span class="giallo-l"><span>    pdwactualstreamindex</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #F29668;">*</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> u32</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    pdwstreamflags</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #F29668;">*</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> u32</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    plltimestamp</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #F29668;">*</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> i64</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    ppsample</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #F29668;">*</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #59C2FF;">IMFSample</span><span>&gt;&gt;,</span><span style="color: #5A6673;font-style: italic;"> // Huh !!</span></span>
+<span class="giallo-l"><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> Result</span><span>&lt;()&gt;;</span></span></code></pre>
+<p>I understand why these look the way they do. They’re mechanically faithful to the original API, and if you already know the Win32 conventions, they’re workable.</p>
+<p>But for beginners or even experienced Rust developers new to Windows APIs this can be genuinely puzzling.</p>
+<p>Once you hit APIs that return arrays of COM objects via out parameters, the abstraction starts to unravel a bit, and the mental model becomes harder to maintain.</p>
+<p>Because of this, I often find myself leaning toward <code>windows-sys</code> instead. It’s much closer to the raw API and much farther from idiomatic Rust, but that’s a personal preference, not a universal judgment.</p>
+<h2 id="final-thoughts">Final thoughts</h2>
+<p>I’m keeping an eye on the <a rel="noopener external" target="_blank" href="https://crates.io/crates/winsafe">winsafe</a> crate. Its coverage is steadily improving, and its API is more idiomatic, but it’s still relatively immature and missing large portions of the Windows surface area.</p>
+<p>Overall, my experience with the windows crate has been straightforward and stable. Development was reliable. and while there are some bumps and quirks, none of them were deal-breakers.</p>
+<p>If you’re doing serious Windows system programming in Rust today, windows is still the most complete and practical option available.</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>

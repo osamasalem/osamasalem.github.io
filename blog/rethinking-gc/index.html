@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    Criticizing Automated Garbage Collection
+</h1>
+
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;programming&#x2F;" class="tag">  #programming</a>
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;rust&#x2F;" class="tag">  #rust</a>
+
+<p class="subtitle"><strong>2025-05-07</strong></p>
+<p>Garbage collection (GC) is widely considered a hallmark of modern programming languages, promoted for its ability to simplify development and reduce memory-related bugs. Its presence in languages such as Java, C#, Go, and JavaScript has become ubiquitous.</p>
+<p>However, <span id="continue-reading"></span> while GC may reduce development complexity, it introduces non-trivial runtime costs—costs that are ultimately borne by the end user. This article presents a critique of GC from a user-experience and engineering accountability perspective, advocating for deterministic memory management models where appropriate, especially in production software.</p>
+<h2 id="1-the-ethical-dimension-who-pays-the-cost">1. The Ethical Dimension: Who Pays the Cost?</h2>
+<p>From the perspective of an end user, runtime performance matters. Whether on mobile, desktop, or embedded systems, users value responsiveness, energy efficiency, and predictability. Yet garbage collection introduces behavior that can contradict these values:</p>
+<ul>
+<li>
+<p>Unpredictable pauses: Even with concurrent or incremental GC strategies, stop-the-world events can still occur, causing latency or frame drops in UI or real-time systems.</p>
+</li>
+<li>
+<p>Increased memory footprint: GC-managed systems often over-allocate memory to reduce collection frequency, raising the baseline resource usage.</p>
+</li>
+<li>
+<p>Indirect power consumption: On battery-powered devices, background memory sweeps have energy implications.</p>
+</li>
+</ul>
+<p>These trade-offs benefit the developer, not the user. The question arises: Is it justifiable for user-facing software to offload developer convenience to the runtime at the user’s expense?</p>
+<h2 id="2-gc-is-a-solution-to-a-developer-problem">2. GC is a Solution to a Developer Problem</h2>
+<p><img src="/GC.gif" alt="GC" /></p>
+<p>Garbage collection addresses issues of memory safety and object lifecycle management, traditionally seen as burdensome or error-prone. While these are legitimate concerns, they are developer-side concerns—and thus, should be solved during development, not deferred to runtime.</p>
+<p>Modern alternatives like RAII (Resource Acquisition Is Initialization) in C++ and Rust’s ownership system provide deterministic, compile-time memory safety without runtime garbage collection. These models shift the responsibility where it belongs: onto the developer and the compiler, not the end user.</p>
+<p>Furthermore, the emergence of linear and affine type systems, particularly in experimental and research-oriented languages, shows promise for compile-time enforcement of resource constraints without any runtime penalty.</p>
+<h2 id="3-auxiliary-runtime-services-a-false-equivalence">3. Auxiliary Runtime Services: A False Equivalence</h2>
+<p>It’s reasonable to observe that most production applications ship with runtime services such as:</p>
+<ul>
+<li>
+<p>Logging and telemetry</p>
+</li>
+<li>
+<p>Tracing and auditing tools</p>
+</li>
+<li>
+<p>Monitoring agents</p>
+</li>
+</ul>
+<p>However, these services are typically optional, externally configurable, and dynamically throttled or disabled in production builds or constrained environments. By contrast, GC is non-optional in GC-based languages and intrinsically tied to program execution, making it much harder to isolate or mitigate.</p>
+<h2 id="4-the-android-vs-ios-case-study">4. The Android vs iOS Case Study</h2>
+<p>A practical illustration of GC’s drawbacks can be seen in the historical performance disparity between Android and iOS:</p>
+<ul>
+<li>
+<p>Android applications, primarily written in Java/Kotlin, rely on garbage-collected runtimes like Dalvik or ART.</p>
+</li>
+<li>
+<p>iOS applications, built in Objective-C and Swift, rely on reference counting with ARC (Automatic Reference Counting), providing deterministic release behavior.</p>
+</li>
+</ul>
+<p>While hardware differences and OS-level integration play roles, developers and analysts have often cited GC-related pauses and memory usage patterns as contributing to Android's historic performance and battery issues—especially on lower-end devices.</p>
+<h2 id="5-capital-vs-operational-cost-trade-off">5. Capital vs Operational Cost Trade-off</h2>
+<p>Proponents of GC argue that it reduces time-to-market and developer effort, which translates to lower capital expenses. However, GC can increase operational expenses, especially at scale:</p>
+<ul>
+<li>
+<p>More CPU cycles consumed per server</p>
+</li>
+<li>
+<p>Higher memory pressure across replicated services</p>
+</li>
+<li>
+<p>Increased cost for hosting, monitoring, and tuning long-lived applications</p>
+</li>
+</ul>
+<p>For software deployed at scale or on constrained edge devices, this trade-off may not be justified.</p>
+<h2 id="6-a-more-nuanced-position">6. A More Nuanced Position</h2>
+<p>While GC simplifies development in early-stage projects, proofs of concept, or command-line tools with brief execution windows, its inclusion in long-running, user-facing software should be deliberate, measured, and justifiable.</p>
+<blockquote>
+<p>Garbage collection is a practical engineering shortcut — not a universally valid foundation for software design.</p>
+</blockquote>
+<p>In contexts where performance, determinism, and control are essential, systems with compile-time memory guarantees—like Rust, modern C++, or languages with linear types—are not just preferable, but ethically aligned with delivering the best possible experience to users.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Garbage collection solves real problems, but it is not a silver bullet. Developers should recognize it as one trade-off among many—not as a default. As an industry, we should strive for tools and languages that encode correctness and efficiency at compile time, rather than relying on invisible background processes at runtime.</p>
+<p>Our goal should be clear: to deliver robust software that respects user resources, and to take full ownership of the systems we build—including their memory lifecycles.</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>
