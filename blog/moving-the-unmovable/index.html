@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    Moving the unmovable: how to transfer ownership in Rust
+</h1>
+
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;programming&#x2F;" class="tag">  #programming</a>
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;rust&#x2F;" class="tag">  #rust</a>
+
+<p class="subtitle"><strong>2025-08-22</strong></p>
+<p>Good software design often requires carefully modeling ownership and data flow from the start. In Rust, this is especially important because ownership is at the core of the language. Sometimes, though, you need to move ownership of an object around- and for many developers coming from other languages, this feels unfamiliar and even frustrating.</p>
+<p>This post discusses techniques for moving owned objects in Rust.<span id="continue-reading"></span> By default, Rust prevents you from simply “grabbing” an object out of another, because doing so might break invariants and leave objects in an invalid state.</p>
+<p>Rust’s ownership model is built on two fundamental rules:</p>
+<ul>
+<li>No object may ever exist in an invalid state.</li>
+<li>Every value has exactly one owner.</li>
+</ul>
+<p>From these rules, it follows that moving a child object out of its parent is normally prohibited, since it could invalidate the parent. In other words, Rust enforces a solid ownership tree: once objects are instantiated, their structure usually remains fixed.</p>
+<blockquote>
+<p>Note: We’re talking here about owned values, not primitives or Copy types.</p>
+</blockquote>
+<p>To explore the options, we’ll use a computer setup as our example: a computer must have a monitor. Throughout the post we’ll see how to “move the monitor out of the setup” under different circumstances.</p>
+<p>But first, Let's see the problem, and illustrate how Rust refuses to move objects around</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Child</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Parent</span><span> {</span></span>
+<span class="giallo-l"><span>    child</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Child</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> lets_move_the_unmovable</span><span>(parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Parent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">Parent</span><span>,</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> child</span><span style="color: #F29668;"> =</span><span> parent</span><span style="color: #F29668;">.</span><span>child;</span></span>
+<span class="giallo-l"><span>    (parent, child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>this code will cause this comiler error</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="plain"><span class="giallo-l"><span>error[E0382]: use of partially moved value: `parent`</span></span>
+<span class="giallo-l"><span> --&gt; src\main.rs:8:6</span></span>
+<span class="giallo-l"><span>  |</span></span>
+<span class="giallo-l"><span>7 |     let child = parent.child;</span></span>
+<span class="giallo-l"><span>  |                 ------------ value partially moved here</span></span>
+<span class="giallo-l"><span>8 |     (parent, child)</span></span>
+<span class="giallo-l"><span>  |      ^^^^^^ value used here after partial move</span></span>
+<span class="giallo-l"><span>  |</span></span>
+<span class="giallo-l"><span>  = note: partial move occurs because `parent.child` has type `Child`, which does not implement the `Copy` trait</span></span>
+<span class="giallo-l"></span></code></pre><h2 id="0-other-means">0. Other means</h2>
+<p>Before trying to move ownership directly, consider alternatives:</p>
+<ul>
+<li>References: Shared (<code>&amp;T</code>) or exclusive (<code>&amp;mut T</code>) references are often enough.</li>
+<li>Shared ownership: If multiple objects need access, use <code>Arc&lt;T&gt;</code> or <code>Arc&lt;RefCell&lt;T&gt;&gt;</code>.</li>
+<li>Cloning: <code>.clone()</code> gives you a copy (sometimes expensive, but valid). This doesn’t move the original, but in some cases that’s exactly what you want.</li>
+</ul>
+<h2 id="1-break-the-whole-setup-to-get-the-child">1. Break the whole setup to get the child</h2>
+<p>If you really want to extract a child, the simplest way is to destroy the parent.
+For example: to get the monitor, throw away the whole computer setup. simple like that!!
+consider this snippet</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Child</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Parent</span><span> {</span></span>
+<span class="giallo-l"><span>    child</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Child</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> drop_parent_take_child</span><span>(</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Parent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> ((),</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> child</span><span style="color: #F29668;"> =</span><span> parent</span><span style="color: #F29668;">.</span><span>child;</span><span style="color: #5A6673;font-style: italic;"> // this is allowed as the funtion takes the ownership of</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">                              // the parent will be destructed at the end of this function</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    // theoritical drop(parent)</span></span>
+<span class="giallo-l"><span>    ((</span><span style="color: #5A6673;font-style: italic;">/*No parent*/</span><span>), child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>This works, but if you had a deep ownership tree, you’d have to destroy the entire structure just to reach a leaf value- sometimes impractical.</p>
+<h2 id="2-barter-with-the-owner">2. Barter with the owner</h2>
+<p>What if you want the monitor, but don’t want to harm the computer? You can replace the monitor with similar one.</p>
+<p>check this</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> replace_with_new_one</span><span>(</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Parent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">Parent</span><span>,</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    // take the object</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> child</span><span style="color: #F29668;"> =</span><span> parent</span><span style="color: #F29668;">.</span><span>child;</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    // compensate the owner</span></span>
+<span class="giallo-l"><span>    parent</span><span style="color: #F29668;">.</span><span>child </span><span style="color: #F29668;">=</span><span style="color: #59C2FF;"> Child</span><span>;</span></span>
+<span class="giallo-l"><span>    (parent, child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>though the idiomatic way may be something like this:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> swap</span><span>(</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Parent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">Parent</span><span>,</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let mut</span><span> child</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Child</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    // barter objects</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    mem</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">swap</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span> child,</span><span style="color: #F29668;"> &amp;</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">.</span><span>child);</span></span>
+<span class="giallo-l"><span>    (parent, child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>If <code>Child</code> struct implements <code>Default</code> trait, you can use this API call to replace the child object with the default, something like this</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span>#[derive(</span><span style="color: #59C2FF;">Default</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Child</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> replace_with_default</span><span>(</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Parent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">Parent</span><span>,</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    // hey owner!! I will take this and you can use the default</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> child</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> mem</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">take</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">.</span><span>child);</span></span>
+<span class="giallo-l"><span>    (parent, child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Note: Usually, you <code>clone</code> the objects in Rust which is similar to bartering. but instead we get the clone out from the owned value, which we can not consider it as transfer ownership.</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span>#[derive(</span><span style="color: #59C2FF;">Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Child</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> replace_with_default</span><span>(parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Parent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">Parent</span><span>,</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span>    (parent, parent</span><span style="color: #F29668;">.</span><span>child</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">clone</span><span>())</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre><h2 id="3-replace-it-with-a-placeholder">3. Replace it with a placeholder</h2>
+<p>Another approach is to make the parent more flexible. Instead of requiring a child, allow for the absence of one with Option.</p>
+<p>consider this one:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> TolerantParent</span><span> {</span></span>
+<span class="giallo-l"><span>    child</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #59C2FF;">Child</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> take_and_fill_the_gap</span><span>(</span><span style="color: #FF8F40;">mut</span><span> parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> TolerantParent</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">TolerantParent</span><span>,</span><span style="color: #59C2FF;"> Option</span><span>&lt;</span><span style="color: #59C2FF;">Child</span><span>&gt;) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    if let</span><span> child</span><span style="color: #F29668;"> =</span><span> parent</span><span style="color: #F29668;">.</span><span>child</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">take</span><span>();</span></span>
+<span class="giallo-l"><span>    (parent, child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Now, the parent remains valid even if the child is missing. The cost is that you’ve moved some safety checks from compile time to runtime- None means “the child is gone.”</p>
+<h2 id="4-in-containers-things-can-be-easier">4. In containers things can be easier</h2>
+<p>With collections, Rust often provides convenient APIs. For example, <code>Vec::remove</code> gives you ownership of an element while maintaining the rest:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> take_one_of_vec</span><span>(parent</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Vec</span><span>&lt;</span><span style="color: #59C2FF;">Child</span><span>&gt;)</span><span style="color: #F29668;"> -&gt;</span><span> (</span><span style="color: #59C2FF;">Vec</span><span>&lt;</span><span style="color: #59C2FF;">Child</span><span>&gt;,</span><span style="color: #59C2FF;"> Child</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let mut</span><span> parent</span><span style="color: #F29668;"> =</span><span> parent;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> child</span><span style="color: #F29668;"> =</span><span> parent</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">remove</span><span>(</span><span style="color: #D2A6FF;">0</span><span>);</span></span>
+<span class="giallo-l"><span>    (parent, child)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>If your computer setup has multiple monitors, taking one doesn’t invalidate the rest.</p>
+<p>But pay attention, that this may obey the general algorith call complexity cost. so if you are okay with that, no problem !!</p>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>We’ve walked through several techniques for transferring ownership in Rust. The language forces us to preserve invariants and prevent invalid states- but within those rules, there are multiple strategies to move values around safely.</p>
+<p>Even if none of these cases match your exact problem, I hope this gave you a clearer sense of how Rust’s ownership works. Keeping invariants valid at all times is exactly what makes Rust special in resource management.</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>

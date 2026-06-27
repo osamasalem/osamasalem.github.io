@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    Circus: Yet Another Programming Take
+</h1>
+
+
+
+<a href="https:&#x2F;&#x2F;osamasalem.github.io&#x2F;tags&#x2F;programming&#x2F;" class="tag">  #programming</a>
+
+<p class="subtitle"><strong>2025-05-06</strong></p>
+<p>Since the mid-20th century, programming languages have largely retained the same fundamental structure as when they were first invented. But as technology evolves steadily—and with hardware hitting the physical limits of single-core scaling and shifting towards multi-core architectures-there is a growing need to rethink how we approach computation.<span id="continue-reading"></span></p>
+<p>Circus explores a new dimension for structuring programs in the age of multi-core systems.</p>
+<h2 id="what-is-circus">What is Circus?</h2>
+<p><code>Circus</code> is a runtime environment and embedded programming language built around the actor model. It decomposes logic into parallel, elementary, atomic actors. Each actor receives one or more inputs and produces output in the form of workload messages passed to other actors, forming the logic graph.</p>
+<p>For example, in a simple expression like <code>5 * 4 + 3 * 6</code>, the multiplications can be executed in parallel, with their results later combined via addition.</p>
+<p><code>Actors</code> are compiled into binary machine code via low-level languages and dynamically linked as modules at runtime. They are loaded on-demand (lazily) as needed.</p>
+<p>Atomic, in this context, refers to actors that perform very small operations (e.g., arithmetic or boolean ops), and may either:</p>
+<ul>
+<li>Maintain guarded state</li>
+<li>Access atomic memory regions</li>
+<li>Be stateless altogether</li>
+</ul>
+<p>Actors can be:</p>
+<ul>
+<li>
+<p><strong>Input-only</strong></p>
+</li>
+<li>
+<p><strong>Output-only</strong></p>
+</li>
+<li>
+<p><strong>Input-output</strong></p>
+</li>
+</ul>
+<p>Messages are transmitted through high-performance, ring-buffered, LIFO queues. As actors execute, they dequeue messages, process them, and enqueue results for downstream actors. This forms a continuous processing graph.</p>
+<p>Circus draws inspiration from Prolog (particularly in its declarative-style logic), but aims to be a general-purpose language with simpler syntax and semantics, targeting modern CPU/GPU environments.</p>
+<p>While broadly applicable, it is especially well-suited for domains like:</p>
+<ul>
+<li>
+<p>Data streaming</p>
+</li>
+<li>
+<p>Media processing</p>
+</li>
+<li>
+<p>Network pipelines</p>
+</li>
+</ul>
+<h2 id="hello-world">Hello, World!</h2>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> main</span><span>()</span><span style="color: #F29668;">:</span><span>(int ret) {</span></span>
+<span class="giallo-l"><span>    puts</span><span style="color: #FFB454;"> s</span><span>(</span><span style="color: #AAD94C;">&quot;Hello, World!!&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>    ret</span><span style="color: #F29668;"> =</span><span style="color: #FFB454;"> signal_int</span><span>(s</span><span style="color: #F29668;">.</span><span>done,</span><span style="color: #D2A6FF;"> 0</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre><h2 id="where-did-the-idea-come-from">Where Did the Idea Come From?</h2>
+<p>It started as an experiment in visual programming -how could software be sketched like a block diagram instead of written line-by-line?</p>
+<p>Later, while working in networking and multithreading, this idea evolved. The goal became clearer: structure software in a way that maps naturally to parallel execution.</p>
+<h2 id="why-circus">Why Circus?</h2>
+<p>Several motivations support this model:</p>
+<ol>
+<li>
+<p>Legacy applications are often single-threaded, underutilizing modern CPUs.</p>
+</li>
+<li>
+<p>The actor/message model is proven to be safe and efficient (e.g., Erlang, Go, Rust channels).</p>
+</li>
+<li>
+<p>Replacing stacks with queues simplifies memory usage and better aligns with producer/consumer workloads and hardware caching.</p>
+</li>
+</ol>
+<h2 id="anatomy-of-a-circus-program">Anatomy of a Circus Program</h2>
+<p>A Circus program is a graph of connected micro-actors. Each actor (or "component") is an abstract unit with:</p>
+<ul>
+<li>Input pins (arguments)</li>
+<li>Output pins (return values)</li>
+</ul>
+<p>Actors are instantiated and connected by logical connections between pins, creating a web of dependencies rather than a linear list of instructions.</p>
+<h3 id="runtime-behavior">Runtime Behavior</h3>
+<p>At runtime, Circus:</p>
+<ul>
+<li>Spawns multiple threads (called jugglers)—typically one per core.</li>
+<li>Creates ring-buffered workload queues (~1.5× the number of cores).</li>
+<li>Each queue uses a 1MB default size (configurable).</li>
+</ul>
+<h3 id="jugglers">Jugglers:</h3>
+<ul>
+<li>Pull tasks from the queues.</li>
+<li>Execute the associated actor logic.</li>
+<li>Enqueue results for other actors.</li>
+<li>Repeat.</li>
+</ul>
+<h3 id="the-ringmaster">The Ringmaster</h3>
+<p>The <code>Ringmaster</code> is a special, low-priority thread that oversees the system:</p>
+<ul>
+<li>Shuts down the program when all queues are idle for a timeout period.</li>
+<li>Dynamically scales the number of threads or queues.</li>
+<li>Detects stuck threads, reassigns their workloads, and restarts them.</li>
+</ul>
+<h2 id="data-tags-and-type-safety">Data Tags and Type Safety</h2>
+<p>The runtime is agnostic to data types. It tracks only data tags—labels defined in the script to represent semantic types. These tags:</p>
+<ul>
+<li>Must match between connected pins (strictly enforced).</li>
+<li>Carry no intrinsic meaning or size at runtime.</li>
+</ul>
+<p>There are built-in tags like <code>int</code>, <code>float</code>, <code>char</code>, <code>bool</code>, and special signal types (e.g., void data), but they are treated symbolically. It is the actor’s responsibility to manage memory safely.</p>
+<h2 id="types-of-actors">Types of Actors</h2>
+<p>There are two categories of actors:</p>
+<ul>
+<li>
+<p><strong>Binary actors</strong>: Dynamically linked machine code functions.</p>
+</li>
+<li>
+<p><strong>Logical actors</strong>: User-defined functions composed of internal actor graphs.</p>
+</li>
+</ul>
+<h3 id="example-of-logical-actor">Example of Logical Actor:</h3>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> foo</span><span>(int a, int b)</span><span style="color: #F29668;">:</span><span>(int ret) {</span></span>
+<span class="giallo-l"><span>    int c</span><span style="color: #F29668;"> =</span><span> a</span><span style="color: #F29668;"> +</span><span> b;</span></span>
+<span class="giallo-l"><span>    string</span><span style="color: #59C2FF;"> str</span><span style="color: #F29668;"> =</span><span> (string)c;</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    puts</span><span>(</span><span style="color: #59C2FF;">str</span><span>);</span></span>
+<span class="giallo-l"><span>    ret</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 1234</span><span>;</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p><strong>Note</strong>: The assignment to ret is independent of other operations.</p>
+<h2 id="no-recursion-but-repetition-allowed">No Recursion, But Repetition Allowed</h2>
+<p>Due to its graph-based structure, recursion is not possible-actors cannot reference themselves cyclically.</p>
+<p>However, loops (repetition) can be modeled via feedback cycles in the graph:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span>x</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 0</span><span>;</span></span>
+<span class="giallo-l"><span>x</span><span style="color: #F29668;"> =</span><span> x</span><span style="color: #F29668;"> +</span><span style="color: #D2A6FF;"> 1</span><span>;</span></span></code></pre>
+<p>This creates an infinite loop where <code>x</code> is a cache actor holding the latest value. The value is incremented and re-fed into <code>x</code>.</p>
+<h2 id="data-handling">Data Handling</h2>
+<p>By default, data is copied into workloads. Avoid using raw pointers unless dealing with large shared structures.</p>
+<p>To share safely:</p>
+<ul>
+<li>
+<p>Use copy-on-write memory with reference counting.</p>
+</li>
+<li>
+<p>Store shared state in dedicated, guarded actors.</p>
+</li>
+</ul>
+<h2 id="avoid-recomputing-unchanged-data">Avoid Recomputing Unchanged Data</h2>
+<p>To optimize, Circus propagates only changed data.</p>
+<p>Each value has a 64-bit hash, so if an actor receives the same value again, it can skip reprocessing.</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span>x</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 0</span><span>;</span></span>
+<span class="giallo-l"><span>x</span><span style="color: #F29668;"> =</span><span> x</span><span style="color: #F29668;"> *</span><span style="color: #D2A6FF;"> 1</span><span>;</span></span></code></pre>
+<p>This will terminate, since the hash of <code>x * 1</code> remains unchanged.</p>
+<h2 id="sequence-numbers-optional-feature">Sequence Numbers (Optional Feature)</h2>
+<p>Circus could also support global sequence numbers for each value, enabling:</p>
+<ul>
+<li>Detection of <strong>outdated values</strong>.</li>
+<li>Preference for newer inputs (as in networking with packet ordering).</li>
+</ul>
+<h2 id="dual-nature-of-actors">Dual Nature of Actors</h2>
+<p>Actors can be called like functions or used like objects:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> foo</span><span>(string s, float f)</span><span style="color: #F29668;">:</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// Functional call</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">foo</span><span>(</span><span style="color: #AAD94C;">&quot;abc&quot;</span><span>,</span><span style="color: #D2A6FF;"> 1</span><span style="color: #BFBDB6B3;">.</span><span style="color: #D2A6FF;">2</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// Object-like usage</span></span>
+<span class="giallo-l"><span>foo f;</span></span>
+<span class="giallo-l"><span>f</span><span style="color: #F29668;">.</span><span>s </span><span style="color: #F29668;">=</span><span style="color: #AAD94C;"> &quot;abc&quot;</span><span>;</span></span>
+<span class="giallo-l"><span>f</span><span style="color: #F29668;">.</span><span>f </span><span style="color: #F29668;">=</span><span style="color: #D2A6FF;"> 1</span><span style="color: #BFBDB6B3;">.</span><span style="color: #D2A6FF;">2</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// Constructor-style</span></span>
+<span class="giallo-l"><span>foo</span><span style="color: #FFB454;"> f</span><span>(</span><span style="color: #AAD94C;">&quot;abc&quot;</span><span>,</span><span style="color: #D2A6FF;"> 1</span><span style="color: #BFBDB6B3;">.</span><span style="color: #D2A6FF;">2</span><span>);</span></span></code></pre><h2 id="join-and-fork">Join and Fork</h2>
+<p>Two special actor types:</p>
+<p><strong>Join</strong>: Two inputs, one output. Emits whenever either input is updated.</p>
+<p><strong>Fork</strong>: One input, two outputs. Duplicates input to both outputs.</p>
+<h2 id="future-horizons">Future Horizons</h2>
+<p><strong>Hardware support</strong>: Future processors might embrace models like Circus natively.</p>
+<p><strong>Multi-tenant distribution</strong>: Sharing workloads across machines for fault tolerance and scalability.</p>
+<p><strong>Adaptive resource control</strong>: Runtime could self-regulate based on real-time load using control theory principles.</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Amaso Melas - programming</title>
+    <link rel="self" type="application/atom+xml" href="https://osamasalem.github.io/tags/programming/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://osamasalem.github.io/"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2026-02-13T00:00:00+00:00</updated>
+    <id>https://osamasalem.github.io/tags/programming/atom.xml</id>
+    <entry xml:lang="en">
+        <title>Windows crate: The good, the bad and the awkward.</title>
+        <published>2026-02-13T00:00:00+00:00</published>
+        <updated>2026-02-13T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://osamasalem.github.io/blog/windows-crate/"/>
+        <id>https://osamasalem.github.io/blog/windows-crate/</id>
+        
+        <summary type="html">&lt;p&gt;The &lt;a rel=&quot;noopener external&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;crates.io&#x2F;crates&#x2F;windows&quot;&gt;windows crate&lt;&#x2F;a&gt; is the Rust package from Microsoft that provides Rust-friendly bindings to the Windows API, which is essential for any kind of serious system programming on Windows.&lt;&#x2F;p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Creating couple iterator: Another dive into unsafe Rust!!</title>
+        <published>2025-10-29T00:00:00+00:00</published>
+        <updated>2025-10-29T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://osamasalem.github.io/blog/creating-couple-iterator/"/>
+        <id>https://osamasalem.github.io/blog/creating-couple-iterator/</id>
+        
+        <summary type="html">&lt;p&gt;I was working on an N-body simulation in Rust, and I noticed a gap:
+Rust, out of the box, does not provide an iterator that can safely yield pairs of mutable references (&lt;code&gt;&amp;amp;mut T&lt;&#x2F;code&gt;) from a slice - without violating Rust’s borrowing rules.&lt;&#x2F;p&gt;
+&lt;p&gt;So, I decided to implement one myself and dive once again into the world of unsafe Rust.&lt;&#x2F;p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Moving the unmovable: how to transfer ownership in Rust</title>
+        <published>2025-08-22T00:00:00+00:00</published>
+        <updated>2025-08-22T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://osamasalem.github.io/blog/moving-the-unmovable/"/>
+        <id>https://osamasalem.github.io/blog/moving-the-unmovable/</id>
+        
+        <summary type="html">&lt;p&gt;Good software design often requires carefully modeling ownership and data flow from the start. In Rust, this is especially important because ownership is at the core of the language. Sometimes, though, you need to move ownership of an object around- and for many developers coming from other languages, this feels unfamiliar and even frustrating.&lt;&#x2F;p&gt;
+&lt;p&gt;This post discusses techniques for moving owned objects in Rust.&amp;hellip;
+&lt;&#x2F;p&gt;
+</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Unsafe Rust</title>
+        <published>2025-05-12T00:00:00+00:00</published>
+        <updated>2025-05-12T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://osamasalem.github.io/blog/unsafe-rust/"/>
+        <id>https://osamasalem.github.io/blog/unsafe-rust/</id>
+        
+        <summary type="html">&lt;p&gt;Back in college, I overheard a group of students discussing something interesting: C#, Microsoft&#x27;s proposed alternative to C++ and their own dialect of Java. I asked, “What about accessing low-level data types and structures?” Someone responded, “You can use &lt;code&gt;unsafe&lt;&#x2F;code&gt; blocks to access pointers freely and interoperate with the newly introduced .NET CLR.” The CLR, of course, allows you to write code in VB, C#, or even C++.&lt;&#x2F;p&gt;</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Criticizing Automated Garbage Collection</title>
+        <published>2025-05-07T00:00:00+00:00</published>
+        <updated>2025-05-07T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://osamasalem.github.io/blog/rethinking-gc/"/>
+        <id>https://osamasalem.github.io/blog/rethinking-gc/</id>
+        
+        <summary type="html">&lt;p&gt;Garbage collection (GC) is widely considered a hallmark of modern programming languages, promoted for its ability to simplify development and reduce memory-related bugs. Its presence in languages such as Java, C#, Go, and JavaScript has become ubiquitous.&lt;&#x2F;p&gt;
+&lt;p&gt;However,&amp;hellip;
+&lt;&#x2F;p&gt;
+</summary>
+        
+    </entry>
+    <entry xml:lang="en">
+        <title>Circus: Yet Another Programming Take</title>
+        <published>2025-05-06T00:00:00+00:00</published>
+        <updated>2025-05-06T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://osamasalem.github.io/blog/circus-prgramming-in-multicore-era/"/>
+        <id>https://osamasalem.github.io/blog/circus-prgramming-in-multicore-era/</id>
+        
+        <summary type="html">&lt;p&gt;Since the mid-20th century, programming languages have largely retained the same fundamental structure as when they were first invented. But as technology evolves steadily—and with hardware hitting the physical limits of single-core scaling and shifting towards multi-core architectures-there is a growing need to rethink how we approach computation.&amp;hellip;
+&lt;&#x2F;p&gt;
+</summary>
+        
+    </entry>
+</feed>
