@@ -126,7 +126,7 @@ if mem::size_of::<T>() == 0 {
 }
 ```
 
-## Safety Note on ZST Aliasing\
+## Safety Note on ZST Aliasing
 
 You might wonder:
 
@@ -246,3 +246,35 @@ This experiment revealed interesting edge cases, especially around ZST aliasing 
 Handling ZSTs is also discussed in the [Rustonomicon](https://doc.rust-lang.org/nomicon/vec/vec-zsts.html) which takes a different approach to dealing with them. I personally find that method a bit more of a gimmicky - but it’s definitely worth checking out if you’re curious.
 
 I made a few assumptions and simplifications for clarity, so if you spot something worth improving, please reach out or comment - I’d love to hear your thoughts!
+
+**UPDATE 27/Jun/2026**:
+After thinking about this implementation for a while, I realized that although it appears to work correctly in a typical for loop, it is actually unsound.
+
+The problem is that Iterator::next returns references with the lifetime 'a, allowing callers to keep previously returned items alive while calling next() again. This can create multiple mutable references to the same element
+
+consider this example
+```rust
+let mut v = vec![1,2,3,4];
+let mut it = v.couples_mut();
+let first = it.next(); // (&mut 1,&mut 2);
+let second = it.next(); // (&mut 1,&mut 3); // WRONG; we have multiple mut references
+                        // pointing to the same 1 element
+
+```
+
+At this point, both `first.0` and `second.0` are distinct `&mut` references to the same element `(v[0])`. This violates Rust's aliasing guarantees, making the iterator unsound and causing undefined behavior-even though no unsafe code is used by the caller.
+
+A for loop usually doesn't expose this issue because each yielded item is dropped before the next iteration. However, the Iterator trait itself makes no such guarantee. Callers are free to keep multiple items alive simultaneously, so an implementation must be sound for all valid uses of the trait, not just the common ones.
+
+A better design would be to return a single mutable reference together with an iterator over the remaining elements. Conceptually, the API would look something like:
+
+```rust
+for (current, rest) in v.couples_mut() {
+    for other in rest {
+        // (current, other)
+    }
+}
+```
+This design naturally expresses the invariant that current and rest are disjoint, allowing the implementation to remain entirely safe.
+
+If I have some more time, I'd like to experiment with this approach and see how ergonomic it feels in practice.
