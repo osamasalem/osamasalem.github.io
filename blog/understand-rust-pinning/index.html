@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" encoding="utf-8">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Amaso Melas</title>
+    
+    <link rel="stylesheet" href="https://osamasalem.github.io/global.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+</head>
+
+
+<body>
+    <div class="body">
+        <header>
+            <a href="/"><h1><span class="icon"></span>Amaso Melas</h1></a>
+        </header>
+        <section class="section">
+            <div class="container">
+                
+<h1 class="title">
+    It is time to understand Pin!!
+</h1>
+
+
+
+<a href="https://osamasalem.github.io/tags/programming/" class="tag">  #programming</a>
+
+
+<a href="https://osamasalem.github.io/tags/rust/" class="tag">  #rust</a>
+
+<p class="subtitle"><strong>2026-09-04</strong></p>
+<p>Pinning is notoriously one of those concepts that baffles many developers (myself included). Naturally, I thought it would be worth breaking down in a dedicated post. It took me a while to grasp the core intuition—largely because existing explanations feel fragmented. The goal of this post is to demystify Pinning, build up the mental model step-by-step, and make it click. So grab your favorite coffee, settle in, and let's dive in.<span id="continue-reading"></span></p>
+<h2 id="the-concept-pinning-in-it-simplest-form">The concept: Pinning in it simplest form !!!</h2>
+<p>When we talk about pinning an object, we simply mean anchoring it to a specific spot in memory and preventing it from being relocated. In other words, we want to stop an object from moving across different memory addresses over time (we will explore why shortly). You are free to inspect an object and read its state, but mutating or relocating it is strictly prohibited- much like an authoritarian developer ruling over a dystopian codebase.</p>
+<p>How do we enforce this? By leveraging the compiler's strict rulebook. First, let's revisit the fundamental laws of borrowing when taking a reference:</p>
+<p>1- You cannot move or modify an object while an active reference—shared or mutable—is held against it.
+2- At any given moment, you can hold either a single mutable reference OR any number of immutable references.</p>
+<p>Let's construct a minimal example to illustrate this mechanics:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let mut</span><span> a</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 5</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let mut</span><span> b</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 7</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> locked_x</span><span style="color: #F29668;"> = &amp;</span><span>x;</span><span style="color: #5A6673;font-style: italic;">      // now x is locked</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> y</span><span style="color: #F29668;"> =</span><span> x;</span><span style="color: #5A6673;font-style: italic;">              // ❌ you can&#39;t move object while you hold reference</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> z</span><span style="color: #F29668;"> = &amp;</span><span style="color: #FF8F40;">mut</span><span> x;</span><span style="color: #5A6673;font-style: italic;">         // ❌ you can&#39;t have mutable reference</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    mem</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">swap</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span> x,</span><span style="color: #F29668;"> &amp;</span><span style="color: #FF8F40;">mut</span><span> b)</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    drop</span><span>(locked_x);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>By holding a reference, we effectively prevent ownership of the underlying object from being transferred, while simultaneously blocking mutable references that could be used to swap or move it. Mission accomplished! While this mechanism feels almost like a trick, it works seamlessly- no runtime magic or complex compiler incantations required.</p>
+<p>To put it concisely: Pinning is simply a mechanism that relies on ownership and borrow-checker rules to restrict access to a mutable reference. Full stop.</p>
+<p>If this concept makes sense, congratulations!! you have unlocked the core principle behind pinning.</p>
+<h2 id="what-is-moving-objects">What is moving objects ?</h2>
+<p>Under the hood, structs and objects are structured byte sequences residing in addressable memory cells. Moving an object simply entails copying its raw bytes from one memory location to another, while simultaneously transferring ownership and destructor responsibilities. Consider this instantiation:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">let</span><span> my_car</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Car</span><span> {</span><span style="color: #5A6673;font-style: italic;"> /* ... */</span><span> }</span></span></code></pre>
+<p>Here, <code>my_car</code> resides at address <code>0x1000000000</code> with the following memory layout:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Car</span><span> {</span><span style="color: #5A6673;font-style: italic;"> // @ 0x1000000000</span></span>
+<span class="giallo-l"><span>    width</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x1000000000</span></span>
+<span class="giallo-l"><span>    height</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x1000000004</span></span>
+<span class="giallo-l"><span>    length</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x1000000008</span></span>
+<span class="giallo-l"><span>    weight</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x100000000C</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Relocating this object shifts its base address to a new memory slot, such as <code>0x2000000000</code>:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> Car</span><span> {</span><span style="color: #5A6673;font-style: italic;"> // @ 0x2000000000</span></span>
+<span class="giallo-l"><span>    width</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x2000000000</span></span>
+<span class="giallo-l"><span>    height</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x2000000004</span></span>
+<span class="giallo-l"><span>    length</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x2000000008</span></span>
+<span class="giallo-l"><span>    weight</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> f32</span><span>,</span><span style="color: #5A6673;font-style: italic;"> // @ 0x200000000C</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre><h2 id="ok-what-about-self-referential-struct">Ok, what about self-referential struct</h2>
+<p>In safe Rust, struct fields cannot hold direct references to sibling fields within the same instance. The immediate barrier is construction: how do you initialize an internal reference to a field when the enclosing object hasn't even finished initializing?</p>
+<p>However, an even deeper issue emerges during moves. Consider an object a placed at <code>0x1000000000</code>, containing a pointer <code>abc_ref</code> pointing directly to its internal field <code>abc</code>:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> SelfReferring</span><span> {</span><span style="color: #5A6673;font-style: italic;"> // @ 0x1000000000</span></span>
+<span class="giallo-l"><span>    abc</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> i32</span><span>,</span><span style="color: #5A6673;font-style: italic;">        // @ 0x1000000000    =&gt; 67</span></span>
+<span class="giallo-l"><span>    abc_ref</span><span style="color: #F29668;">: *</span><span style="color: #FF8F40;">const</span><span style="color: #59C2FF;"> i32</span><span style="color: #5A6673;font-style: italic;"> // @ 0x1000000004 =&gt; points to abc @ 0x1000000000 (67)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Here, abc = 67, abc_ref = 0x1000000000, and *abc_ref = 67.
+Now, suppose we transfer ownership of object <code>a</code> to new variable <code>b</code>:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">let</span><span> b</span><span style="color: #F29668;"> =</span><span> a</span></span></code></pre>
+<p>The underlying memory representation of <code>b</code> is moved to <code>0x2000000000</code>:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> SelfReferring</span><span> {</span><span style="color: #5A6673;font-style: italic;">  // @ 0x2000000000</span></span>
+<span class="giallo-l"><span>    abc</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> i32</span><span>,</span><span style="color: #5A6673;font-style: italic;">           // @ 0x2000000000    =&gt; 67</span></span>
+<span class="giallo-l"><span>    abc_ref</span><span style="color: #F29668;">: *</span><span style="color: #FF8F40;">const</span><span style="color: #59C2FF;"> i32</span><span style="color: #5A6673;font-style: italic;"> // @ 0x2000000004 =&gt; points to abc @ 0x1000000000 (????)</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>Notice the catch: while <code>abc</code> shifted to <code>0x2000000000</code>, <code>abc_ref</code> still points back to the stale address <code>0x1000000000</code>! Dereferencing <code>abc_ref</code> now leads to dangling pointers and undefined behavior. We could theoretically update pointer offsets on every move, but that would impose a significant runtime overhead. Or... is there a better way?</p>
+<h2 id="return-to-pinning">Return to pinning</h2>
+<p>The alternative- and far more elegant- approach is to guarantee that moving the object is entirely impossible. We can achieve this by formalizing our earlier borrow-checker mechanism within Rust's type system:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">pub struct</span><span style="color: #59C2FF;"> MyPin</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    ptr</span><span style="color: #F29668;">: &amp;</span><span>&#39;</span><span style="color: #59C2FF;">a T</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;</span><span style="color: #59C2FF;"> MyPin</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    pub fn</span><span style="color: #FFB454;"> new</span><span>(rf</span><span style="color: #F29668;">: &amp;</span><span>&#39;</span><span style="color: #59C2FF;">a T</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #39BAE6;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">        MyPin</span><span> { ptr</span><span style="color: #F29668;">:</span><span> rf }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let mut</span><span> x</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 5</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> locked_x</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> MyPin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">new</span><span>(</span><span style="color: #F29668;">&amp;</span><span>x);</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    // now those operations are invalid (compile error)</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    //let x = x;</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">    //mem::swap(&amp;mut x, &amp;mut other);</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">    drop</span><span>(locked_x);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Congratulations! You now understand the fundamental blueprint of Pin. Everything else on top of this is merely extra architectural polish.</p>
+<h2 id="more-enhancements">More enhancements</h2>
+<p>Right now, our <code>MyPin</code> abstraction is essentially a black hole: it locks the object away so thoroughly that no one can read its contents. To fix this, we can implement the Deref trait to restore safe read access:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt;</span><span style="color: #59C2FF;"> Deref</span><span style="color: #FF8F40;"> for</span><span style="color: #59C2FF;"> MyPin</span><span>&lt;&#39;</span><span style="color: #59C2FF;">a</span><span>,</span><span style="color: #59C2FF;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    type</span><span style="color: #59C2FF;"> Target</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> T</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    fn</span><span style="color: #FFB454;"> deref</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #39BAE6;font-style: italic;">self</span><span>)</span><span style="color: #F29668;"> -&gt; &amp;</span><span style="color: #39BAE6;font-style: italic;">Self</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">Target</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #39BAE6;font-style: italic;">        self</span><span style="color: #F29668;">.</span><span>ptr</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Much better! We can now conveniently read <code>x</code> through <code>locked_x</code> without risking a memory move.</p>
+<h2 id="what-about-other-reference-types">What about other reference types?</h2>
+<p>So far, our <code>MyPin</code> holds a simple shared reference (&amp;T). But what if we want to pin heap-allocated or smart pointer types like <code>Box</code>, <code>Rc</code>, or <code>Cow</code>..etc?</p>
+<p>To achieve this, we can abstract MyPin over any pointer type that implements <code>Deref</code>:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">pub struct</span><span style="color: #59C2FF;"> MyPin</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    ptr</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> T</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;</span><span style="color: #59C2FF;"> MyPin</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">where</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    T</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Deref</span><span>,</span></span>
+<span class="giallo-l"><span>{</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    pub fn</span><span style="color: #FFB454;"> new</span><span>(rf</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> T</span><span>)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #39BAE6;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">        MyPin</span><span> { ptr</span><span style="color: #F29668;">:</span><span> rf }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">impl</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;</span><span style="color: #59C2FF;"> Deref</span><span style="color: #FF8F40;"> for</span><span style="color: #59C2FF;"> MyPin</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span>&gt;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">where</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    T</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Deref</span><span>,</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>{</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    type</span><span style="color: #59C2FF;"> Target</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> T</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">Target</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    fn</span><span style="color: #FFB454;"> deref</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #39BAE6;font-style: italic;">self</span><span>)</span><span style="color: #F29668;"> -&gt; &amp;</span><span style="color: #39BAE6;font-style: italic;">Self</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">Target</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #F29668;">        &amp;</span><span style="color: #39BAE6;font-style: italic;">self</span><span style="color: #F29668;">.</span><span>ptr</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>At this point, our custom implementation closely mirrors <code>std::pin::Pin</code>.</p>
+<p>It is worth noting an important distinction here regarding Box: when you wrap a <code>Box&lt;T&gt;</code> in Pin, the Box container itself moves into the <code>Pin</code>, but the heap payload it points to remains immutably fixed at its memory address. Even if the Box on the stack is relocated, the underlying heap data stays pinned.</p>
+<h2 id="pin-able-or-not-pin-able-this-is-the-question">Pin-able or Not pin-able, this is the question ?</h2>
+<p>The Rust language designers realized that this exact mechanism was indispensable for managing self-referential structures in Async Rust.</p>
+<p>Under the hood, when the compiler encounters an async block or function, it transforms it into an anonymous state machine. Local stack variables that must persist across .await points are saved inside this state machine, naturally forming self-referential pointers across state boundaries.</p>
+<p>However, enforcing strict unmovable semantics across all Rust types would be disastrously restrictive. Basic types like i32 or String have no self-references and can be moved safely anywhere at any time.</p>
+<p>To resolve this, Rust introduced the trait system into the equation:</p>
+<p>1- <code>Unpin</code>: Marker trait automatically assigned to normal, movable types (i32, String, f32). For these types, pinning is essentially a harmless transparent wrapper.</p>
+<p>2- <code>!Unpin</code>: Marker for types that must never be relocated once pinned (such as compiler-generated async futures or types opt-in via PhantomPinned).</p>
+<h3 id="so-in-breif">SO in Breif</h3>
+<blockquote>
+<p>Compiler-generated async futures are marked as <code>!Unpin</code>, forbidding them from moving. Here, Pin acts as a true safeguard, locking the underlying memory address in place. Similarly, custom types explicitly tagged as <code>!Unpin</code> are kept frozen.
+Conversely, standard types implement <code>Unpin</code> by default (marker traits similar to <code>Send</code> and <code>Sync</code>). Wrapping an <code>Unpin</code> type in Pin provides no functional immobility -it behaves as a simple wrapper because the type system freely permits retrieving a mutable reference to the inner value.</p>
+</blockquote>
+<p>This operational split between <code>Unpin</code> (movable) and <code>!Unpin</code> (immovable) hinges entirely on conditional API methods like get_mut:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">pub const fn</span><span style="color: #FFB454;"> get_mut</span><span>(</span><span style="color: #39BAE6;font-style: italic;">self</span><span>)</span><span style="color: #F29668;"> -&gt; &amp;</span><span>&#39;</span><span style="color: #59C2FF;">a</span><span style="color: #FF8F40;"> mut</span><span style="color: #59C2FF;"> T</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">where</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    T</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Unpin</span><span>,</span></span>
+<span class="giallo-l"><span>{</span><span style="color: #5A6673;font-style: italic;">/* ... */</span><span>}</span></span></code></pre>
+<p>Consider that get_mut() is only available directly on Pin&lt;&amp;mut T&gt; and is not directly accessible on <code>Pin&lt;Box&lt;T&gt;&gt;</code>. To access get_mut() on a pinned Box, you must first reborrow it as a pinned mutable reference using as_mut().get_mut() (provided the underlying type implements <code>Unpin</code>).</p>
+<p>Notice the trait bound: if a type implements <code>Unpin</code>, you are allowed to safely extract a mutable reference and relocate the inner data.</p>
+<p>While compiler-generated futures automatically opt out of <code>Unpin</code>, you can manually mark a custom struct as <code>!Unpin</code> using the <code>PhantomPinned</code> marker:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">struct</span><span style="color: #59C2FF;"> SelfReferring</span><span> {</span><span style="color: #5A6673;font-style: italic;"> // SelfReferring is not !Unpin</span></span>
+<span class="giallo-l"><span>    abc</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> i32</span><span>,</span></span>
+<span class="giallo-l"><span>    abc_ref</span><span style="color: #F29668;">: *</span><span style="color: #FF8F40;">const</span><span style="color: #59C2FF;"> i32</span><span>,</span></span>
+<span class="giallo-l"><span>    _pinned</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> PhantomPinned</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>Let's observe this behavior in code:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// assert if type is Unpin or !Unpin in compile time as compiler error</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">const fn</span><span style="color: #FFB454;"> assert_unpin</span><span>&lt;</span><span style="color: #59C2FF;">T</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Unpin</span><span>&gt;(_</span><span style="color: #F29668;">: &amp;</span><span style="color: #59C2FF;">T</span><span>) {}</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">assert_unpin</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #D2A6FF;">42</span><span>);</span><span style="color: #5A6673;font-style: italic;">                                           // ✅</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">assert_unpin</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">async</span><span> {</span><span style="color: #D2A6FF;"> 42</span><span> });</span><span style="color: #5A6673;font-style: italic;">                                 // ❌</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">assert_unpin</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #59C2FF;">tokio</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">time</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">sleep</span><span>(</span><span style="color: #59C2FF;">Duration</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">from_secs</span><span>(</span><span style="color: #D2A6FF;">3</span><span>)));</span><span style="color: #5A6673;font-style: italic;">   // ❌ PhantomPinned</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">assert_unpin</span><span>(</span><span style="color: #F29668;">&amp;</span><span>());</span><span style="color: #5A6673;font-style: italic;">                                           // ✅</span></span>
+<span class="giallo-l"><span style="color: #FFB454;">assert_unpin</span><span>(</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">async</span><span> {</span><span style="color: #5A6673;font-style: italic;">                                        // ❌</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">    let</span><span> x</span><span style="color: #F29668;"> =</span><span style="color: #D2A6FF;"> 5</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #59C2FF;">    tokio</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">time</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">sleep</span><span>(</span><span style="color: #59C2FF;">Duration</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">from_secs</span><span>(</span><span style="color: #D2A6FF;">3</span><span>))</span><span style="color: #F29668;">.</span><span style="color: #FF8F40;">await</span><span>;</span></span>
+<span class="giallo-l"><span>    x</span></span>
+<span class="giallo-l"><span>});</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// ||</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// || this leads to</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// ||</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// \/</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// Unpin</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">let</span><span> _</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">get_ref</span><span>(</span><span style="color: #59C2FF;">std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">pin!</span><span>(</span><span style="color: #D2A6FF;">42</span><span>)</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">into_ref</span><span>());</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">let</span><span> _</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">get_mut</span><span>(</span><span style="color: #59C2FF;">std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">pin!</span><span>(</span><span style="color: #D2A6FF;">42</span><span>));</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">let</span><span> _</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">get_ref</span><span>(</span><span style="color: #59C2FF;">std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">pin!</span><span>(())</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">into_ref</span><span>());</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">let</span><span> _</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">get_mut</span><span>(</span><span style="color: #59C2FF;">std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">pin!</span><span>(()));</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// !Unpin</span></span>
+<span class="giallo-l"><span style="color: #FF8F40;">let</span><span> _</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">get_ref</span><span>(</span><span style="color: #59C2FF;">std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">pin!</span><span>(</span><span style="color: #59C2FF;">tokio</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">time</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">sleep</span><span>(</span><span style="color: #59C2FF;">Duration</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">from_secs</span><span>(</span><span style="color: #D2A6FF;">5</span><span>)))</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">into_ref</span><span>());</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">//let _ = Pin::get_mut(std::pin::pin!(tokio::time::sleep(Duration::from_secs(5)))); Invalid</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF8F40;">let</span><span> _</span><span style="color: #F29668;"> =</span><span style="color: #59C2FF;"> Pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">get_ref</span><span>(</span><span style="color: #59C2FF;">std</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">pin</span><span style="color: #F29668;">::</span><span style="color: #FFB454;">pin!</span><span>(</span><span style="color: #FF8F40;">async</span><span> {})</span><span style="color: #F29668;">.</span><span style="color: #FFB454;">into_ref</span><span>());</span></span>
+<span class="giallo-l"><span style="color: #5A6673;font-style: italic;">// let _ = Pin::get_mut(std::pin::pin!(async {})); Invalid</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>A few noteworthy nuances to keep in mind:</p>
+<p>1- You can technically bypass pinning constraints for <code>!Unpin</code> types by invoking the unsafe method <code>get_unchecked_mut()</code>, but memory safety guarantees fall entirely on your shoulders.</p>
+<p>2- Pin itself implements <code>Unpin</code>. Moving the <code>Pin</code> container on the stack does not disrupt the memory location of the underlying pinned value.</p>
+<p>3- If you need to transfer pinned references across thread boundaries or manage recursive futures, heap-pinning via <code>Pin&lt;Box&lt;T&gt;&gt;</code> or <code>Box::pin</code>is vastly superior to stack-pinning <code>(Pin&lt;&amp;mut T&gt;)</code>.</p>
+<h2 id="final-words">Final Words</h2>
+<p>Now, take another look at the signature of <code>poll</code> in the <code>Future</code> trait:</p>
+<pre class="giallo" style="color: #BFBDB6; background-color: #0D1017;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FF8F40;">fn</span><span style="color: #FFB454;"> poll</span><span>(</span><span style="color: #39BAE6;font-style: italic;">self</span><span style="color: #F29668;">:</span><span style="color: #59C2FF;"> Pin</span><span>&lt;</span><span style="color: #F29668;">&amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #39BAE6;font-style: italic;"> Self</span><span>&gt;, cx</span><span style="color: #F29668;">: &amp;</span><span style="color: #FF8F40;">mut</span><span style="color: #59C2FF;"> Context</span><span>&lt;&#39;</span><span style="color: #59C2FF;">_</span><span>&gt;)</span><span style="color: #F29668;"> -&gt;</span><span style="color: #59C2FF;"> Poll</span><span>&lt;</span><span style="color: #39BAE6;font-style: italic;">Self</span><span style="color: #F29668;">::</span><span style="color: #59C2FF;">Output</span><span>&gt;;</span></span></code></pre>
+<p>Equipped with this mental model, the API design becomes crystal clear: poll demands <code>Pin&lt;&amp;mut Self&gt;</code> so that if Self is <code>!Unpin</code> (as compiler-generated async state machines are), the caller cannot inadvertently swap or relocate the state machine between poll cycles.</p>
+<p>On the flip side, if <code>Self</code> implements <code>Unpin</code>, it gracefully falls back to standard Rust <code>&amp;mut self</code> behavior. no pinnig, no freezing..</p>
+<p>While pinning reaches far into the mechanics of async Rust, capturing this baseline primitive is half the battle. I hope this walkthrough gave you that much-needed "aha!" moment. Happy pinning!</p>
+
+
+            </div>
+        </section>
+        <footer>
+
+            <p>
+                    <a href="/"><i class="fa fa-home" aria-hidden="true"></i> Home</a>
+                | <a target="_blank" href="https://www.linkedin.com/in/osama-salem-5a432546/"><i class="fa fa-linkedin" aria-hidden="true"></i> LinkedIn</a>
+                | <a target="_blank" href="https://github.com/osamasalem"><i class="fa fa-github" aria-hidden="true"></i> Github</a>
+                | <a target="_blank" href="https://x.com/MelasAmaso"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i>  X</a>
+            </p>
+            <p>Powered by <a target="_blank" href="https://www.getzola.org/">Zola©</a> </p>
+
+        </footer>
+    </div>
+</body>
+
+</html>
