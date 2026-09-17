@@ -6,7 +6,7 @@ slug = "understand-rust-pinning"
 tags = ["programming","rust"]
 +++
 
-Pinning is notoriously one of those concepts that baffles many developers (myself included). Naturally, I thought it would be worth breaking down in a dedicated post. It took me a while to grasp the core intuition—largely because existing explanations feel fragmented. The goal of this post is to demystify Pinning, build up the mental model step-by-step, and make it click. So grab your favorite coffee, settle in, and let's dive in.
+Pinning is notoriously one of those concepts that baffles many developers (myself included). Naturally, I thought it would be worth breaking down in a dedicated post. It took me a while to grasp the core intuition—largely because existing explanations feel fragmented. The goal of this post is to demystify Pinning, build up the mental model step-by-step, and make it click. So grab your favorite coffee, settle in, and let's dive in.<!--more-->
 
 
 
